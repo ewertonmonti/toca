@@ -167,99 +167,99 @@ res_ss_chegadas <- REAT::shiftd(e_ij1 = e_ij1,
 ```
 
 
-<!-- ## Resultados sobre receitas turísticas internacionais -->
-<!-- ### Importação dos dados -->
-<!-- ```{r} -->
-<!-- # Shift-share dinâmico (turismo receptivo) com REAT::shiftd ---- -->
-<!-- rm(list = ls(all=T)) -->
-<!-- library(tidyverse) -->
-<!-- library(magrittr) -->
-<!-- library(REAT) -->
-<!-- library(readxl) -->
+## Resultados sobre receitas turísticas internacionais
+### Importação dos dados
+```{r}
+# Shift-share dinâmico (turismo receptivo) com REAT::shiftd ----
+rm(list = ls(all=T))
+library(tidyverse)
+library(magrittr)
+library(REAT)
+library(readxl)
 
-<!-- pais_alvo <- "Brazil" -->
+pais_alvo <- "Brazil"
 
-<!-- # Importa dados da OMT --- -->
-<!-- path <- "data/UN_Tourism_inbound_expenditure_10_2025.xlsx" -->
-<!-- bd_raw <- readxl::read_excel(path,  -->
-<!--                              sheet = "Data", -->
-<!--                              col_types = c("text", "text", "text", "numeric", "text", "numeric", -->
-<!--                                            "text","numeric","numeric","text","text","text", -->
-<!--                                            "text","text")) |>  -->
-<!--   janitor::clean_names() -->
-<!-- ``` -->
+# Importa dados da OMT ---
+path <- "data/UN_Tourism_inbound_expenditure_10_2025.xlsx"
+bd_raw <- readxl::read_excel(path,
+                             sheet = "Data",
+                             col_types = c("text", "text", "text", "numeric", "text", "numeric",
+                                           "text","numeric","numeric","text","text","text",
+                                           "text","text")) |>
+  janitor::clean_names()
+```
 
-<!-- ### Preparação dos dados -->
-<!-- ```{r} -->
-<!-- # Total de receitas por país e ano ---- -->
-<!-- bd_pa <- bd_raw |> -->
-<!--   summarise(receitas = sum(value), .by = c(reporter_area_label, year)) |>  -->
-<!--   rename(pais = reporter_area_label, -->
-<!--          ano = year) -->
+### Preparação dos dados
+```{r}
+# Total de receitas por país e ano ----
+bd_pa <- bd_raw |>
+  summarise(receitas = sum(value), .by = c(reporter_area_label, year)) |>
+  rename(pais = reporter_area_label,
+         ano = year)
 
-<!-- # Número de observações por país -->
-<!-- bd_pa |> count(pais) |> group_by(n) |> count() |> print(n=Inf) -->
+# Número de observações por país
+bd_pa |> count(pais) |> group_by(n) |> count() |> print(n=Inf)
 
-<!-- # Visualização da série de um país para a amostra completa -->
-<!-- bd_pa |> filter(pais == pais_alvo) |> ggplot(aes(x = ano, y = receitas)) +  -->
-<!--   geom_bar(stat = "identity") + -->
-<!--   labs(title = "Receitas turísticas internacionais do Brasil (ou país de interesse) por ano (série por país)") -->
+# Visualização da série de um país para a amostra completa
+bd_pa |> filter(pais == pais_alvo) |> ggplot(aes(x = ano, y = receitas)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Receitas turísticas internacionais do Brasil (ou país de interesse) por ano (série por país)")
 
-<!-- # Limita ao período de análise ---- -->
-<!-- v_anos <- c(2003:2019) -->
+# Limita ao período de análise ----
+v_anos <- c(2003:2019)
 
-<!-- # Visualização da série de um país para o período de análise -->
-<!-- bd <- bd_pa |> filter(ano %in% v_anos) -->
-<!-- bd |> filter(pais == pais_alvo) |> ggplot(aes(x = ano, y = receitas)) +  -->
-<!--   geom_bar(stat = "identity") + -->
-<!--   scale_x_continuous(breaks = v_anos, labels = as.character(v_anos)) + -->
-<!--   scale_y_continuous(n.breaks = length(v_anos)) + -->
-<!--   labs(title = "Receitas turísticas internacionais do Brasil (ou país de interesse) por ano (recorte temporal)") -->
+# Visualização da série de um país para o período de análise
+bd <- bd_pa |> filter(ano %in% v_anos)
+bd |> filter(pais == pais_alvo) |> ggplot(aes(x = ano, y = receitas)) +
+  geom_bar(stat = "identity") +
+  scale_x_continuous(breaks = v_anos, labels = as.character(v_anos)) +
+  scale_y_continuous(n.breaks = length(v_anos)) +
+  labs(title = "Receitas turísticas internacionais do Brasil (ou país de interesse) por ano (recorte temporal)")
 
 
-<!-- # Série "mundo" ---- -->
-<!-- bd_mundo <- bd_pa |> -->
-<!--   summarise(receitas = sum(receitas, na.rm = TRUE), .by = ano) |> -->
-<!--   arrange(ano) |>  -->
-<!--   filter(ano %in% v_anos) -->
+# Série "mundo" ----
+bd_mundo <- bd_pa |>
+  summarise(receitas = sum(receitas, na.rm = TRUE), .by = ano) |>
+  arrange(ano) |>
+  filter(ano %in% v_anos)
 
-<!-- # Visualização da série mundial para o período de análise -->
-<!-- bd_mundo |> ggplot(aes(x = ano, y = receitas)) + geom_bar(stat = "identity") + -->
-<!--   scale_x_continuous(breaks = v_anos, labels = as.character(v_anos)) + -->
-<!--   scale_y_continuous(n.breaks = length(v_anos)) + -->
-<!--   labs(title = "Total de receitas turísticas internacionais por ano (recorte temporal") -->
+# Visualização da série mundial para o período de análise
+bd_mundo |> ggplot(aes(x = ano, y = receitas)) + geom_bar(stat = "identity") +
+  scale_x_continuous(breaks = v_anos, labels = as.character(v_anos)) +
+  scale_y_continuous(n.breaks = length(v_anos)) +
+  labs(title = "Total de receitas turísticas internacionais por ano (recorte temporal")
 
-<!-- ``` -->
+```
 
-<!-- ### Análise Shift-Share -->
+### Análise Shift-Share
 
-<!-- ```{r} -->
-<!-- # Parâmetros da análise -->
-<!-- e_ij1	<- bd |> filter(pais == pais_alvo, ano == 2003) |> pull(receitas) -->
+```{r}
+# Parâmetros da análise
+e_ij1	<- bd |> filter(pais == pais_alvo, ano == 2003) |> pull(receitas)
 
-<!-- e_ij2	<- bd |> filter(pais == pais_alvo, ano > 2003) |>  -->
-<!--   pivot_wider(values_from = receitas, names_from = ano) |>  -->
-<!--   dplyr::select(-pais)|> as.data.frame() -->
+e_ij2	<- bd |> filter(pais == pais_alvo, ano > 2003) |>
+  pivot_wider(values_from = receitas, names_from = ano) |>
+  dplyr::select(-pais)|> as.data.frame()
 
-<!-- e_i1 <-  bd_mundo |> filter(ano == 2003) |> pull(receitas) -->
+e_i1 <-  bd_mundo |> filter(ano == 2003) |> pull(receitas)
 
-<!-- e_i2	<- bd_mundo |> filter(ano > 2003) |>  -->
-<!--   pivot_wider(values_from = receitas, names_from = ano) |> -->
-<!--   as.data.frame() -->
+e_i2	<- bd_mundo |> filter(ano > 2003) |>
+  pivot_wider(values_from = receitas, names_from = ano) |>
+  as.data.frame()
 
-<!-- time1 <- min(v_anos) -->
-<!-- time2 <- max(v_anos) -->
+time1 <- min(v_anos)
+time2 <- max(v_anos)
 
-<!-- # Execução -->
-<!-- res_ss_receitas <- REAT::shiftd(e_ij1 = e_ij1, -->
-<!--                     e_ij2 = e_ij2, -->
-<!--                     e_i1  = e_i1, -->
-<!--                     e_i2  = e_i2, -->
-<!--                     time1 = time1, -->
-<!--                     time2 = time2, -->
-<!--                     shift.method = "Dunn", -->
-<!--                     print.results = TRUE, plot.results = TRUE) -->
-<!-- ``` -->
+# Execução
+res_ss_receitas <- REAT::shiftd(e_ij1 = e_ij1,
+                    e_ij2 = e_ij2,
+                    e_i1  = e_i1,
+                    e_i2  = e_i2,
+                    time1 = time1,
+                    time2 = time2,
+                    shift.method = "Dunn",
+                    print.results = TRUE, plot.results = TRUE)
+```
 
 
 
@@ -520,4 +520,89 @@ ggplot(df_agg, aes(x = "", y = Value, fill = Effect)) +
 
 ```
 
+## Gemini revisou
+```{r}
+library(dplyr)
+library(WDI)
+library(tidyr)
+
+calcular_shift_share <- function(df_turismo, paises_concorrentes, ano_inicio, ano_fim) {
+  
+  # 1. Validação e Preparação do Benchmark
+  # Garante que o Brasil esteja na lista para compor o "Total do Mercado Analisado"
+  lista_paises <- unique(c("Brazil", paises_concorrentes))
+  
+  # Filtra o dataset original para o período e países de interesse
+  # Nota: Pegamos (ano_inicio - 1) para ter o lag correto do primeiro ano da análise
+  df_filtrado <- df_turismo %>%
+    filter(pais %in% lista_paises,
+           year >= (ano_inicio - 1),
+           year <= ano_fim)
+  
+  # 2. Calcular Chegadas do Brasil e do Benchmark (Grupo de Países)
+  # Benchmark = Soma de todos os países selecionados (incluindo Brasil)
+  dados_consolidados <- df_filtrado %>%
+    group_by(year) %>%
+    summarise(
+      benchmark_arrivals = sum(turistas, na.rm = TRUE), # "Mundo" da sua análise original
+      brazil_arrivals = sum(turistas[pais == "Brazil"], na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    arrange(year)
+  
+  # 3. Obter Dados Econômicos (PIB Mundial)
+  # Usamos tryCatch para evitar que a função pare se houver falha na internet
+  tryCatch({
+    dados_gdp <- WDI(
+      country = "1W", # 1W = Mundo
+      indicator = "NY.GDP.MKTP.KD.ZG",
+      start = ano_inicio - 1, 
+      end = ano_fim
+    ) %>%
+      as_tibble() %>%
+      rename(year = year, g_world_gdp_pct = NY.GDP.MKTP.KD.ZG) %>%
+      select(year, g_world_gdp_pct) %>%
+      mutate(g_world_gdp = g_world_gdp_pct / 100) # Converter % para decimal
+  }, error = function(e) {
+    stop("Erro ao baixar dados do WDI. Verifique sua conexão ou a API do Banco Mundial.")
+  })
+  
+  # 4. Unir Dados e Calcular Taxas de Crescimento
+  df_final <- dados_consolidados %>%
+    left_join(dados_gdp, by = "year") %>%
+    mutate(
+      # Crescimento do Benchmark (Turismo)
+      g_benchmark_tour = (benchmark_arrivals / lag(benchmark_arrivals)) - 1,
+      
+      # Crescimento do Brasil (Turismo)
+      g_brazil_tour = (brazil_arrivals / lag(brazil_arrivals)) - 1,
+      
+      # Lag das chegadas no Brasil (base para o efeito)
+      A_brazil_lag = lag(brazil_arrivals)
+    ) %>%
+    # Remover o ano de lag (ano_inicio - 1) para ficar apenas com o período solicitado
+    filter(year >= ano_inicio)
+  
+  # 5. Cálculo dos Efeitos Shift-Share
+  df_result <- df_final %>%
+    mutate(
+      # GGE: Efeito do crescimento da economia global
+      GGE  = A_brazil_lag * g_world_gdp,
+      
+      # GIME: Efeito da mistura industrial (o quanto o turismo do grupo cresceu acima da economia global)
+      # Nota: Aqui usamos g_benchmark_tour no lugar de g_world_tour do código original
+      GIME = A_brazil_lag * (g_benchmark_tour - g_world_gdp),
+      
+      # GCSE: Efeito competitividade (o quanto o Brasil cresceu acima do grupo selecionado)
+      GCSE = A_brazil_lag * (g_brazil_tour - g_benchmark_tour),
+      
+      # Verificação: Variação Total (deve bater com a soma dos efeitos)
+      Total_Change = brazil_arrivals - A_brazil_lag,
+      Check_Sum = GGE + GIME + GCSE
+    ) %>%
+    select(year, brazil_arrivals, g_brazil_tour, g_benchmark_tour, g_world_gdp, GGE, GIME, GCSE, Total_Change)
+  
+  return(df_result)
+}
+```
 
