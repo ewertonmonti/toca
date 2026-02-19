@@ -31,15 +31,14 @@ ano_start  <- ano_inicio - 1
 
 # Chegadas ----
 
-path_chegadas <- "data/UN_Tourism_inbound_arrivals_10_2025.xlsx"
+path_chegadas <- "data/UN_Tourism_inbound_arrivals_12_2025.xlsx"
 bd_raw_chegadas <- readxl::read_excel(
   path_chegadas,
   sheet = "Data",
   col_types = c("text","text","text","numeric","text","numeric",
                 "text","numeric","numeric","text","text","text",
-                "text","text")
-) |>
-  janitor::clean_names()
+                "text")
+) |> janitor::clean_names()
 
 bd_chegadas <- bd_raw_chegadas |>
   filter(indicator_code == "INBD_TRIP_TOTL_TOTL_TOUR") |>
@@ -49,13 +48,13 @@ bd_chegadas <- bd_raw_chegadas |>
 
 # Receitas ----
 
-path_receitas <- "data/UN_Tourism_inbound_expenditure_10_2025.xlsx"
+path_receitas <- "data/UN_Tourism_inbound_expenditure_12_2025.xlsx"
 bd_raw_receitas <- readxl::read_excel(
   path_receitas,
   sheet = "Data",
   col_types = c("text","text","text","numeric","text","numeric",
                 "text","numeric","numeric","text","text","text",
-                "text","text")
+                "text")
 ) |>
   janitor::clean_names()
 
@@ -525,7 +524,7 @@ run_shift_share_turismo <- function(
 # Executa a função ----
 
 setdiff(concorrentes_diretos, unique(bd$pais))
-bd |> filter(ano %in% 2002:2024, pais %in% unique(concorrentes_diretos)) |> count(pais)
+bd |> filter(ano %in% 2002:2022, pais %in% unique(concorrentes_diretos)) |> count(pais)
 
 res <- run_shift_share_turismo(
   bd = bd,
