@@ -61,11 +61,31 @@ library(tidyverse)
 library(magrittr)
 library(readxl)
 library(viridis)
+library(WDI)
 
 # Vetor de concorrentes ----
-concorrentes <- c("Brazil","Peru","Dominican Republic","Dominican Rep.","Colombia","Spain","Chile","Costa Rica","Jamaica",
+concorrentes <- c("Brazil","Peru","Dominican Republic", "Colombia","Spain","Chile","Costa Rica","Jamaica",
                           "Cuba","Argentina","Mexico")
 ```
+
+```{r}
+#| label: Importados dados de 2009
+path_chegadas <- "data/UN_Tourism_inbound_arrivals_12_2025.xlsx"
+bd_raw_chegadas <- readxl::read_excel(path_chegadas, 
+                                      sheet = "Data",
+                                      col_types = c("text", "text", "text", "numeric", "text", "numeric",
+                                                    "text","numeric","numeric","text","text","text",
+                                                    "text")) |> 
+  janitor::clean_names()
+
+bd_chegadas_2009 <- bd_raw_chegadas |>
+  filter(indicator_code == "INBD_TRIP_TOTL_TOTL_TOUR", year == 2009, reporter_area_label %in% concorrentes) |>
+  summarise(chegadas = sum(value), .by = c(reporter_area_label, year)) |> 
+  rename(destino = reporter_area_label,
+         ano = year)
+
+```
+
 
 ```{r}
 #| label: Importações Tourism Highlights
@@ -106,6 +126,7 @@ hl_regions  %<>% janitor::clean_names()
 
 hl <- bind_rows(hl_americas, hl_europe, hl_regions)
 hl <- janitor::clean_names(hl)
+hl %<>% mutate(country_group_name = str_replace_all(country_group_name, "Dominican Rep.", "Dominican Republic"))
 hl <- hl |> filter(country_group_name %in% c(concorrentes,"World"))
 hl |> count(country_group_name)
 
@@ -117,26 +138,28 @@ hl_long <- hl |>
   rename(destino = country_group_name)
 
 # Acréscimo de dados mais recentes
-# Fonte UN Tourism Dashboard (https://www.untourism.int/tourism-data/un-tourism-tourism-dashboard, 19/2/2026)
-dados_dashboard <- data.frame(destino = character(), ano = numeric(), chegadas = numeric())
-dados_dashboard <- add_row(dados_dashboard, destino = "World",              ano = 2024, chegadas = 1465000)
-dados_dashboard <- add_row(dados_dashboard, destino = "World",              ano = 2025, chegadas = 1523000)
-dados_dashboard <- add_row(dados_dashboard, destino = "Brazil",             ano = 2024, chegadas = 6800)
-dados_dashboard <- add_row(dados_dashboard, destino = "Brazil",             ano = 2025, chegadas = 9300)
-dados_dashboard <- add_row(dados_dashboard, destino = "Peru",               ano = 2024, chegadas = 3300)
-dados_dashboard <- add_row(dados_dashboard, destino = "Dominican Rep.",     ano = 2024, chegadas = 8100)
-dados_dashboard <- add_row(dados_dashboard, destino = "Dominican Rep.",     ano = 2025, chegadas = 8500)
-dados_dashboard <- add_row(dados_dashboard, destino = "Colombia",           ano = 2024, chegadas = 6800)
-dados_dashboard <- add_row(dados_dashboard, destino = "Spain",              ano = 2024, chegadas = 93800)
-dados_dashboard <- add_row(dados_dashboard, destino = "Chile",              ano = 2024, chegadas = 5200)
-dados_dashboard <- add_row(dados_dashboard, destino = "Costa Rica",         ano = 2024, chegadas = 2900)
-dados_dashboard <- add_row(dados_dashboard, destino = "Jamaica",            ano = 2024, chegadas = 2900)
-dados_dashboard <- add_row(dados_dashboard, destino = "Cuba",               ano = 2023, chegadas = 2400)
-dados_dashboard <- add_row(dados_dashboard, destino = "Cuba",               ano = 2024, chegadas = 2200)
-dados_dashboard <- add_row(dados_dashboard, destino = "Argentina",          ano = 2024, chegadas = 6600)
-dados_dashboard <- add_row(dados_dashboard, destino = "Mexico",             ano = 2024, chegadas = 45000)
+# Fonte 2024:2025 UN Tourism Dashboard (https://www.untourism.int/tourism-data/un-tourism-tourism-dashboard, 19/2/2026)
+# Fonte 2009 Mundo: Anuário Estatístico de Turismo 2022 - Ano Base 2021. https://www.gov.br/turismo/pt-br/acesso-a-informacao/acoes-e-programas/observatorio/anuario-estatistico/anuario-estatistico-de-turismo-2021-ano-base-2020/copy_of_anuario_estatistico_de_turismo_2022_vol49_1ed__plan_excel.zip
+dados_extras <- data.frame(destino = character(), ano = numeric(), chegadas = numeric())
+dados_extras <- add_row(dados_extras, destino = "World",              ano = 2024, chegadas = 1465000)
+dados_extras <- add_row(dados_extras, destino = "World",              ano = 2025, chegadas = 1523000)
+dados_extras <- add_row(dados_extras, destino = "Brazil",             ano = 2024, chegadas = 6800)
+dados_extras <- add_row(dados_extras, destino = "Brazil",             ano = 2025, chegadas = 9300)
+dados_extras <- add_row(dados_extras, destino = "Peru",               ano = 2024, chegadas = 3300)
+dados_extras <- add_row(dados_extras, destino = "Dominican Republic", ano = 2024, chegadas = 8100)
+dados_extras <- add_row(dados_extras, destino = "Dominican Republic", ano = 2025, chegadas = 8500)
+dados_extras <- add_row(dados_extras, destino = "Colombia",           ano = 2024, chegadas = 6800)
+dados_extras <- add_row(dados_extras, destino = "Spain",              ano = 2024, chegadas = 93800)
+dados_extras <- add_row(dados_extras, destino = "Chile",              ano = 2024, chegadas = 5200)
+dados_extras <- add_row(dados_extras, destino = "Costa Rica",         ano = 2024, chegadas = 2900)
+dados_extras <- add_row(dados_extras, destino = "Jamaica",            ano = 2024, chegadas = 2900)
+dados_extras <- add_row(dados_extras, destino = "Cuba",               ano = 2023, chegadas = 2400)
+dados_extras <- add_row(dados_extras, destino = "Cuba",               ano = 2024, chegadas = 2200)
+dados_extras <- add_row(dados_extras, destino = "Argentina",          ano = 2024, chegadas = 6600)
+dados_extras <- add_row(dados_extras, destino = "Mexico",             ano = 2024, chegadas = 45000)
+dados_extras <- add_row(dados_extras, destino = "World",             ano = 2009, chegadas = 892000)
 
-hl_long <- bind_rows(hl_long, dados_dashboard)
+hl_long <- bind_rows(hl_long, dados_extras, bd_chegadas_2009)
 hl_long <- hl_long |> arrange(destino, ano) |> na.omit()
 
 ```
@@ -280,131 +303,245 @@ bd |> ggplot(aes(x = ano, y = pct)) +
 
 ### Decomposição da participação do Brasil e seus principais concorrentes no receptivo turístico internacional
 
-
 ```{r}
-#| label: Importações data bulk 12/2025
-#| eval: false
-#| include: false
+#| label: Dados do PIB mundial
+# PIB
+# Indicador de Crescimento Anual (%) - NY.GDP.MKTP.KD.ZG = GDP growth (annual %)
+indicador_crescimento <- "NY.GDP.MKTP.KD.ZG"
 
-# Tipos esperados (readxl)
-col_types <- c(
-  "text",     # indicator_code
-  "text",     # indicator_label
-  "text",     # indicator_previous_code
-  "numeric",  # reporter_area_code
-  "text",     # reporter_area_label
-  "numeric",  # partner_area_code
-  "text",     # partner_area_label
-  "numeric",  # year
-  "numeric",  # value
-  "text",     # flag
-  "text",     # flag_label
-  "text",     # unit
-  "text"      # notes
+# Baixar dados do PIB mundial
+# iso2c "1W" = Mundo, "BR" = Brasil, "CN" = China, "US" = EUA
+paises_interesse_pib <- c("1W")
+
+# Faz o download
+dados_cresc <- WDI(
+  country = paises_interesse_pib,
+  indicator = indicador_crescimento,
+  start = 2010,
+  end = 2024
 )
 
-total_arrivals <- read_excel("data/UN_Tourism_bulk_data_download_12_2025/02_Inbound/01_Total_arrivals/UN_Tourism_inbound_arrivals_12_2025.xlsx", 
-    sheet = "Data",
-    col_types = col_types
+# Limpeza
+dados_cresc <- dados_cresc |>
+  as_tibble() |>
+  rename(crescimento_anual = NY.GDP.MKTP.KD.ZG) |>
+  filter(!is.na(crescimento_anual))
+
+attr(dados_cresc$crescimento_anual, "label") <- NULL
+
+# # 4. Visualização com linha de referência em 0
+# ggplot(dados_limpos, aes(x = year, y = crescimento_anual, color = country)) +
+#   # Linha horizontal no zero para destacar recessões
+#   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+#   geom_line(linewidth = 1) +
+#   geom_point(size = 2) +
+#   # Ajustar eixo Y para mostrar porcentagem
+#   scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+#   scale_x_continuous(breaks = seq(2003, 2025, 2)) + # Pula de 2 em 2 anos
+#   labs(
+#     title = "Taxa de Crescimento Real do PIB (% Anual)",
+#     subtitle = "Comparativo: Brasil, EUA e Média Mundial",
+#     y = "Crescimento (%)",
+#     x = "Ano",
+#     caption = "Fonte: Banco Mundial (Indicador NY.GDP.MKTP.KD.ZG)",
+#     color = "Região/País"
+#   ) +
+#   theme_minimal() +
+#   theme(legend.position = "bottom")
+
+world_gdp <- dados_cresc |> arrange(year) |> 
+  mutate(crescimento_anual2 = crescimento_anual / 100) |> 
+  pull(crescimento_anual2)
+
+pib <- data.frame(ano = 2010:2024, g_world_gdp = world_gdp)
+# pib <- pib |> mutate(g_world_gdp = ifelse(ano == 2003, NA, g_world_gdp))
+```
+
+
+```{r}
+#| label: Função do Shift-share estático
+
+# variavel <- "chegadas"
+# ano_inicio <- 2010
+# ano_fim <- 2024
+# paises_concorrentes <- concorrentes
+# df_pib <- pib
+
+
+calcular_shift_share <- function(bd, df_pib, paises_concorrentes, variavel = "chegadas", ano_inicio, ano_fim) {
+  
+  # --- 1. Validação ---
+  if (!variavel %in% c("chegadas", "receitas")) {
+    stop("O argumento 'variavel' deve ser 'chegadas' ou 'receitas'.")
+  }
+  
+  # Seleciona colunas e renomeia variável de interesse dinamicamente
+  bd_limpo <- hl_long %>%
+    select(destino, ano, valor = .data[[variavel]])
+  
+  # --- 2. Cálculo do Benchmark MUNDIAL (Todos os países da base) ---
+  dados_mundo <- bd_limpo %>%
+    filter(ano >= (ano_inicio - 1), ano <= ano_fim, destino == "World") %>%
+    mutate(
+      g_mundo_tour = (valor / lag(valor)) - 1
+    ) |> 
+    rename(mundo_volume = valor) |> 
+    dplyr::select(-destino)
+  
+  # --- 3. Cálculo do Benchmark GRUPO (Brasil + Concorrentes) ---
+  lista_paises <- unique(c("Brazil", paises_concorrentes))
+  
+  dados_grupo <- bd_limpo %>%
+    filter(destino %in% lista_paises,
+           ano >= (ano_inicio - 1), ano <= ano_fim) %>%
+    group_by(ano) %>%
+    summarise(
+      grupo_volume = sum(valor, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      g_grupo_tour = (grupo_volume / lag(grupo_volume)) - 1
     )
+  
+  # --- 4. Preparação dos Dados Individuais ---
+  dados_individuais <- bd_limpo %>%
+    filter(destino %in% lista_paises,
+           ano >= (ano_inicio - 1), ano <= ano_fim)
+  
+  # Agregado dos concorrentes (sem Brasil)
+  dados_concorrentes_agg <- dados_individuais %>%
+    filter(destino != "Brazil") %>%
+    group_by(ano) %>%
+    summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
+    mutate(destino = "Concorrentes")
+  
+  dados_todos <- bind_rows(dados_individuais, dados_concorrentes_agg)
+  
+  # --- 5. Cálculo dos Efeitos Shift-Share ---
+  
+  df_calculo <- dados_todos %>%
+    arrange(destino, ano) %>%
+    group_by(destino) %>%
+    mutate(
+      g_pais = (valor / lag(valor)) - 1,
+      lag_valor = lag(valor)
+    ) %>%
+    filter(ano >= ano_inicio - 1) %>%
+    left_join(df_pib, by = "ano") %>%
+    left_join(dados_mundo, by = "ano") %>%
+    left_join(dados_grupo, by = "ano") %>%
+    mutate(
+      # Efeitos (Baseados em Volume)
+      GGE = lag_valor * g_world_gdp,
+      
+      GIME_Grupo = lag_valor * (g_grupo_tour - g_world_gdp),
+      GCSE_Grupo = lag_valor * (g_pais - g_grupo_tour),
+      
+      GIME_Mundo = lag_valor * (g_mundo_tour - g_world_gdp),
+      GCSE_Mundo = lag_valor * (g_pais - g_mundo_tour),
+      
+      Total_Change = valor - lag_valor,
+      
+      # Share do país em relação ao MUNDO naquele ano
+      share_mundo_atual = (valor / mundo_volume) * 100,
+      share_mundo_anterior = (lag_valor / lag(mundo_volume)) * 100,
+      var_share_pp = share_mundo_atual - share_mundo_anterior # Variação em pontos percentuais
+    ) %>%
+    ungroup() |> 
+    filter(ano >= ano_inicio)
+  
+  # --- 6. Output 1: Série Temporal do Brasil ---
+  df_brasil_timeseries <- df_calculo %>%
+    filter(destino == "Brazil") %>%
+    select(ano, 
+           brazil_volume = valor, 
+           share_global_pct = share_mundo_atual,
+           var_share_pp, 
+           g_world_gdp, 
+           g_mundo_turismo = g_mundo_tour,
+           g_grupo_turismo = g_grupo_tour,
+           g_brazil_turismo = g_pais, 
+           GGE, 
+           GIME_Mundo, GCSE_Mundo,
+           GIME_Grupo, GCSE_Grupo
+    )
+  
+  # --- 7. Output 2: Resumo Consolidado (COMPLETO) ---
+  df_resumo_periodo <- df_calculo %>%
+    group_by(destino) %>%
+    summarise(
+      # Volumetria
+      Volume_Inicial = first(lag_valor),
+      Volume_Final = last(valor),
+      Variação_Total = sum(Total_Change, na.rm = TRUE),
+      
+      # Métricas de Share (Adicionadas)
+      Share_Global_Inicial = first(share_mundo_anterior),
+      Share_Global_Final = last(share_mundo_atual),
+      Variação_Share_PP = Share_Global_Final - Share_Global_Inicial,
+      
+      # Efeitos acumulados (Todos mantidos)
+      Total_GGE = sum(GGE, na.rm = TRUE),
+      
+      # Contexto Mundo
+      Total_GIME_Mundo = sum(GIME_Mundo, na.rm = TRUE),
+      Total_GCSE_Mundo = sum(GCSE_Mundo, na.rm = TRUE),
+      
+      # Contexto Grupo
+      Total_GIME_Grupo = sum(GIME_Grupo, na.rm = TRUE),
+      Total_GCSE_Grupo = sum(GCSE_Grupo, na.rm = TRUE)
 
-bd <- total_arrivals |> filter(indicator_code == "INBD_TRIP_TOTL_TOTL_TOUR")
+    ) %>%
+    arrange(desc(Total_GCSE_Mundo))
+  
+  return(list(
+    serie_brasil = df_brasil_timeseries,
+    resumo_geral = df_resumo_periodo
+  ))
+}
+
+# Rodar a função
+dssa <- calcular_shift_share(
+  bd = bd,
+  df_pib = pib,
+  paises_concorrentes = concorrentes, 
+  variavel = "chegadas",
+  ano_inicio = 2010,
+  ano_fim = 2024
+)
+
+# 1. Ver a tabela de tempo original (Só Brasil)
+knitr::kable(dssa$serie_brasil, caption = "Resultados SSA Brasil")
+
+# Gráfico efeitos Brasil x Mundo
+dssa$serie_brasil |>
+  select(ano, GGE, GIME_Mundo, GCSE_Mundo) |>
+  pivot_longer(cols = -ano, names_to = "Efeito", values_to = "Valor") |>
+  ggplot(aes(x = ano, y = Valor, fill = Efeito)) +
+  geom_col() +
+  labs(title = "Decomposição Shift-Share: Brasil vs Mundo",
+       y = "Variação de chegadas (nº)",
+       x = "Ano") +
+  scale_x_continuous(breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(breaks = seq(-5000, 5000, 1000))
+
+# Gráfico efeitos Brasil x Concorrentes
+dssa$serie_brasil |>
+  select(ano, GGE, GIME_Grupo, GCSE_Grupo) |>
+  pivot_longer(cols = -ano, names_to = "Efeito", values_to = "Valor") |>
+  ggplot(aes(x = ano, y = Valor, fill = Efeito)) +
+  geom_col() +
+  labs(title = "Decomposição Shift-Share: Brasil vs Concorrentes",
+       y = "Variação de chegadas (nº)",
+       x = "Ano") +
+  scale_x_continuous(breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(breaks = seq(-5000, 5000, 1000))
 
 
-
-# Cria tabela com os totais anuais dos concorrentes
-tab_concorrentes <- total_arrivals |> 
-  filter(indicator_code == "INBD_TRIP_TOTL_TOTL_TOUR") |> 
-  filter(reporter_area_label %in% concorrentes) |> 
-  summarise(chegadas = sum(value), .by = c(reporter_area_label, year))
-
-# Heatmap pra verificar a completude anual dos dados
-tab_concorrentes |> filter(year >= 2003) |> 
-  ggplot(aes(x=year, y=reporter_area_label, fill = chegadas)) + 
-  geom_tile() +
-  scale_fill_viridis(discrete=FALSE, direction=-1)
-
-# Cria tabela com os totais anuais do mundo
-tab_mundo <- total_arrivals |> 
-  filter(indicator_code == "INBD_TRIP_TOTL_TOTL_TOUR") |> 
-  filter(partner_area_label == "World") |> 
-  summarise(chegadas = sum(value), .by = year) |> 
-  mutate(reporter_area_label = "World")
-
-# Gráfico do total mundial de chegadas
-tab_mundo |> ggplot(aes(x = year, y = chegadas)) +
-  geom_bar(stat="identity") +
-  geom_text(aes(label = formatC(chegadas, format = "f", big.mark = ".", decimal.mark = ",", digits = 1)), 
-            position = position_dodge(width = 0.9), 
-            vjust = -0.3, size = 2.5) +
-   scale_x_continuous(breaks = seq(2003, 2024, 3),
-                      minor_breaks = seq(2003, 2024, 1)) +
-  labs(
-    title = "Total de chegadas turísticas internacionais, por ano",
-    y = "Chegadas (mil)",
-    x = "Ano")
-
-# Cria tabela com a participação anual de cada país no total mundial
-bd_part <- left_join(tab_concorrentes, tab_mundo, by = join_by(year)) |> 
-  rename(chegadas = chegadas.x,
-         mundo = chegadas.y,
-         destino = reporter_area_label.x,
-         ano = year) |> 
-  dplyr::select(-reporter_area_label.y) |> 
-  filter(ano >= 2003) |> 
-  mutate(pct = chegadas / mundo * 100)
-
-
-
-# Gráfico do total das chegadas
-bd_part |> ggplot(aes(x = ano, y = chegadas, colour = destino)) +
-  geom_line()
-
-# Gráfico do total das chegadas, sem Espanha e México
-bd_part |> filter(!destino %in% c("Spain", "Mexico")) |> 
-  ggplot(aes(x = ano, y = chegadas, colour = destino)) +
-  geom_line()
-
-# Gráfico da participação
-bd_part |> ggplot(aes(x = ano, y = pct, colour = destino)) +
-  geom_line()
-
-# Gráfico da participação, sem Espanha e México
-bd_part |> filter(!destino %in% c("Spain", "Mexico")) |> 
-  ggplot(aes(x = ano, y = pct, colour = destino)) +
-  geom_line()
-
-# Gráfico da participação do Brasil
-bd_part |> filter(destino == "Brazil") |> 
-  ggplot(aes(x = ano, y = pct)) +
-  geom_bar(stat="identity") +
-  geom_text(aes(label = formatC(pct, format = "f", big.mark = ".", decimal.mark = ",", digits = 2)), 
-            position = position_dodge(width = 0.9), 
-            vjust = -0.3, size = 2.5) +
-   scale_x_continuous(breaks = seq(2003, 2024, 3),
-                      minor_breaks = seq(2003, 2024, 1)) +
-  labs(
-    title = "Participação do Brasil no total de chegadas turísticas internacionais, por ano",
-    y = "Participação (%)",
-    x = "Ano")
-
-# Gráfico da participação de todos os países
-bd_part |> ggplot(aes(x = ano, y = pct)) +
-  geom_bar(stat="identity") +
-  geom_text(aes(label = formatC(pct, format = "f", big.mark = ".", decimal.mark = ",", digits = 2)), 
-            position = position_dodge(width = 0.9), 
-            vjust = -0.3, size = 2.5) +
-   scale_x_continuous(breaks = seq(2003, 2024, 3),
-                      minor_breaks = seq(2003, 2024, 1)) +
-  labs(
-    title = "Participação no total de chegadas turísticas internacionais, por ano",
-    y = "Participação (%)",
-    x = "Ano") + 
-  facet_wrap(~destino, scales = "free_y")
-
+# 2. Ver o resumo comparativo (Brasil, Países Individuais e Grupo Concorrente)
+dssa$resumo_geral |> arrange(desc(Total_GCSE_Mundo)) |> knitr::kable(caption = "Resumo Geral")
 
 
 
 ```
-
 
