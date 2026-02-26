@@ -51,7 +51,7 @@ echo: false
 ```{r}
 #| label: Configurações iniciais
 
- 
+options(scipen = 999) 
 rm(list = ls(all=T))
 library(tidyverse)
 library(magrittr)
@@ -484,7 +484,7 @@ bd |> filter(ano %in% 2010:2024) |>
 ```
 
 ```{r}
-# Gráfico do total das chegadas
+# Gráfico das chegadas por país
 bd |> filter(ano %in% 2010:2024) |> 
     mutate(destino = fct_reorder(destino, if_else(ano == 2024, chegadas, NA_real_),
                        .fun = max, .na_rm = TRUE)) |> 
@@ -497,7 +497,7 @@ bd |> filter(ano %in% 2010:2024) |>
   scale_x_continuous(breaks = seq(2010, 2024, 2),
                       minor_breaks = seq(2010, 2024, 1))
 
-# Gráfico do total das chegadas, sem Espanha e México
+# Gráfico das chegadas por país, sem Espanha e México
 bd |> filter(ano %in% 2010:2024, !destino %in% c("Spain", "Mexico")) |> 
     mutate(destino = fct_reorder(destino, if_else(ano == 2024, chegadas, NA_real_),
                        .fun = max, .na_rm = TRUE)) |> 
@@ -919,6 +919,79 @@ bde |> summarise(partidas = sum(partidas), .by = origem) |>
 
 #### Principais emissores do Brasil
 
+```{r}
+bdc <- readRDS("data/chegadas/chegadas.rds")
+
+principais <- bdc |> filter(ano == 2024) |> 
+  summarise(chegadas = sum(chegadas), .by = pais) |> 
+  slice_max(n = 20, order_by = chegadas) |> pull(pais)
+
+bdc <- bdc |> filter(pais %in% principais) |> 
+  summarise(chegadas = sum(chegadas), .by = c(pais, ano))
+
+bdc |> dplyr::select(pais, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
+  pivot_wider(id_cols = pais, values_from = chegadas, names_from = ano, names_sort = TRUE) |> 
+  rowwise() |> mutate(Média = mean(c_across(`2010`:`2024`), na.rm = TRUE)) |>  ungroup() |> 
+  arrange(desc(Média)) |> 
+  gt() |> 
+  data_color(
+    columns = `2010`:`2024`, 
+    target_columns = `2010`:`2024`, 
+    method = "numeric",
+    palette = "Blues") |> 
+  fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
+  tab_header(title = "Chegadas turísticas internacionais, por país e ano (mil)") |> 
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(columns = Média))
+
+# Gráfico das chegadas no Brasil por país
+bdc |> filter(ano %in% 2010:2024) |> 
+  mutate(chegadas = chegadas / 1000) |> 
+  mutate(pais = fct_reorder(pais, if_else(ano == 2024, chegadas, NA_real_),
+                               .fun = max, .na_rm = TRUE)) |> 
+  ggplot(aes(x = ano, y = chegadas, fill = pais)) +
+  geom_area(size=.3, colour="grey") +
+  scale_x_continuous(breaks = seq(2010, 2024, 2),
+                     minor_breaks = seq(2010, 2024, 1)) +
+  labs(
+    title = "Chegadas turísticas internacionais no Brasil, por ano",
+    subtitle = "20 principais emissores para o Brasil",
+    y = "Chegadas (mil)",
+    x = "Ano",
+    fill = "País de origem") +
+  theme(legend.position = "bottom")
+
+
+# Taxa de crescimento do Brasil e do mundo
+bdc_temp <- bdc |> filter(ano %in% c(2009:2024)) |> 
+  mutate(variacao = round((chegadas / lag(chegadas) - 1) * 100, 1), .by = pais) |>
+  filter(ano %in% c(2010:2024))
+
+var_max <- bdc_temp |> filter(ano %in% c(2010:2019,2024)) |> 
+  mutate(variacao = abs(variacao)) |> 
+  slice_max(variacao, n=1) |> 
+  pull()
+
+cols_color <- c(as.character(2010:2019), "2024")
+
+bdc_temp |> 
+  pivot_wider(id_cols = pais, values_from = variacao, names_from = ano, names_sort = TRUE) |> 
+  arrange(pais) |> 
+  gt() |> 
+  data_color(
+    columns = all_of(cols_color),, 
+    target_columns = all_of(cols_color),, 
+    method = "numeric",
+    palette = c("red", "white", "green"),
+    domain = c(-var_max, var_max)) |> 
+  fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
+  tab_header(title = "Variação anual das chegadas turísticas internacionais ao Brasil, por país e ano (mil)",
+             subtitle = "20 principais emissores para o Brasil")
+
+# OBS: falta a participação de cada país no total
+
+```
 
 
 #### Mercados selecionados: quem são, quanto representam e quanto cresceram
@@ -1036,6 +1109,7 @@ bd_mercados |>
 #| label: emissivo boxplot partidas
 #| fig-height: 10
 
+
 # Boxplot do total das partidas
 # mutate(origem = fct_reorder(origem, if_else(ano == 2024, partidas, NA_real_),
 #                                .fun = max, .na_rm = TRUE, .desc = TRUE)) |> 
@@ -1045,9 +1119,9 @@ bde |> filter(origem %in% mercados, ano %in% 2010:2024) |>
   geom_boxplot() +
   labs(
     title = "Distribuição das partidas turísticas internacionais, por país",
-    y = "partidas (mil)",
+    y = "Partidas (mil)",
     x = "País de origem") + 
-  scale_x_discrete(labels = scales::label_wrap(10)) +
+  scale_x_discrete(labels = scales::label_wrap(20)) +
   coord_flip()
 
 ```
@@ -1097,7 +1171,9 @@ bde |> filter(origem %in% mercados, ano %in% 2010:2024) |>
 
 ```{r}
 #| label: emissivo area volume
- 
+#| fig-height: 10
+#| fig-width: 12 
+
 # Gráfico do total das partidas
 
   # mutate(origem = fct_reorder(origem, if_else(ano == 2019, partidas, NA_real_),
@@ -1108,7 +1184,7 @@ bde |> filter(origem %in% mercados, ano %in% 2010:2024) |>
   geom_area() +
   labs(
     title = "Total de partidas turísticas internacionais, por ano",
-    y = "partidas (mil)",
+    y = "Partidas (mil)",
     x = "Ano") + 
   scale_x_continuous(breaks = seq(2010, 2024, 2),
                      minor_breaks = seq(2010, 2024, 1)) +
