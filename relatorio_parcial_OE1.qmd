@@ -1,6 +1,7 @@
 ---
 title: "Relatório Parcial OE1"
-format: html
+format: 
+  html: default
 editor: source
 page-layout: full
 self-contained: true
@@ -9,9 +10,16 @@ execute:
   cache: false 
 toc: true
 toc-depth: 5
+toc-expand: true
 toc-title: Sumário
+toc-location: right
 number-sections: true
 echo: false
+lightbox: true
+lang: pt
+fig-cap-location: top
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ## Perguntas de pesquisa
@@ -58,6 +66,25 @@ library(magrittr)
 library(readxl)
 library(viridis)
 library(WDI)
+
+# Funções de formatação de números
+fun_formatC_inteiros <- function(x) {
+  formatC(x, format = "f", digits = 0, big.mark = ".", decimal.mark = ",")
+}
+
+fun_formatC_1_decimal <- function(x) {
+  formatC(x, format = "f", digits = 1, big.mark = ".", decimal.mark = ",")
+}
+
+fun_formatC_2_decimais <- function(x) {
+  formatC(x, format = "f", digits = 2, big.mark = ".", decimal.mark = ",")
+}
+
+fun_formatC_pct <- function(x) {
+  paste0(
+    formatC(x, format = "f", digits = 1, big.mark = ".", decimal.mark = ","),
+    "%")
+}
 
 # Vetor de concorrentes ----
 concorrentes <- c("Brazil","Peru","Dominican Republic", "Colombia","Spain","Chile","Costa Rica","Jamaica",
@@ -186,7 +213,8 @@ Em relação ao mundo:
 -   Em 2024 retomou o número de viagens de 2019.
 
 ```{r}
-
+#| label: fig-chegadas-mundo
+#| fig-cap: "Total de chegadas turísticas internacionais, por ano"
 
 # Gráfico do total mundial de chegadas
 hl_long |> filter(destino == "World", ano %in% c(2010:2024)) |> 
@@ -197,6 +225,7 @@ hl_long |> filter(destino == "World", ano %in% c(2010:2024)) |>
             vjust = -0.3, size = 2.5) +
    scale_x_continuous(breaks = seq(2010, 2024, 2),
                       minor_breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(labels = fun_formatC_inteiros) +
   labs(
     title = "Total de chegadas turísticas internacionais, por ano",
     y = "Chegadas (mil)",
@@ -204,6 +233,7 @@ hl_long |> filter(destino == "World", ano %in% c(2010:2024)) |>
 ```
 
 ```{r}
+#| label: Cria tabela da participação de cada país no total
 # Cria tabela com a participação anual de cada país no total mundial
 bd_mundo <- hl_long |> filter(destino == "World")
 bd_concorrentes <- hl_long |> filter(destino != "World")
@@ -224,6 +254,9 @@ Tenho a impressão de que o Brasil mudou a forma de calcular o volume de chegada
 :::
 
 ```{r}
+#| label: fig-chegadas-brasil
+#| fig-cap: "Total de chegadas turísticas internacionais ao Brasil, por ano"
+
 # Gráfico das chegadas do Brasil
 bd |> filter(destino == "Brazil", ano %in% c(2010:2024)) |> 
   ggplot(aes(x = ano, y = chegadas)) +
@@ -233,6 +266,7 @@ bd |> filter(destino == "Brazil", ano %in% c(2010:2024)) |>
             vjust = -0.3, size = 2.5) +
    scale_x_continuous(breaks = seq(2010, 2024, 2),
                       minor_breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(labels = fun_formatC_inteiros) +
   labs(
     title = "Total de chegadas turísticas internacionais ao Brasil, por ano",
     y = "Chegadas (mil)",
@@ -244,6 +278,9 @@ bd |> filter(destino == "Brazil", ano %in% c(2010:2024)) |>
 -   Após a pandemia, há alguma dificuldade para retomar o patamar anterior.
 
 ```{r}
+#| label: fig-participacao-brasil
+#| fig-cap: "Participação do Brasil no total de chegadas turísticas internacionais, por país e ano"
+
 # Gráfico da participação do Brasil
 bd |> filter(destino == "Brazil", ano %in% c(2010:2024)) |>  
   ggplot(aes(x = ano, y = pct)) +
@@ -270,6 +307,9 @@ bd |> filter(destino == "Brazil", ano %in% c(2010:2024)) |>
 -   O Brasil e o mundo registram quedas relativamente semelhantes em 2020. No ano seguinte houve crescimento positivo no mundo, mas no Brasil foi registrada variação negativa semelhante a de 2020. Este cenário se altera em 2022, com taxa de crescimento mais de três vezes superior a mundial. Em 2023 e 2024 a variação do Brasl e do mundo é semelhante.
 
 ```{r}
+#| label: fig-variacao-brasil2019
+#| fig-cap: "Variação do total de chegadas turísticas internacionais no Brasil e no mundo, por ano (2010-2019)"
+
 # Taxa de crescimento do Brasil e do mundo
 hl_long |> filter(destino %in% c("Brazil", "World"), ano %in% c(2009:2024)) |> 
   group_by(destino) |> 
@@ -286,6 +326,12 @@ hl_long |> filter(destino %in% c("Brazil", "World"), ano %in% c(2009:2024)) |>
     title = "Variação do total de chegadas turísticas internacionais no Brasil\n e no mundo, por ano (2010-2019)",
     y = "Variação (%)",
     x = "Ano")
+```
+
+
+```{r}
+#| label: fig-variacao-brasil2024
+#| fig-cap: "Variação do total de chegadas turísticas internacionais no Brasil e no mundo, por ano (2019-2024)"
 
 hl_long |> filter(destino %in% c("Brazil", "World"), ano %in% c(2009:2024)) |> 
   group_by(destino) |> 
@@ -310,7 +356,9 @@ hl_long |> filter(destino %in% c("Brazil", "World"), ano %in% c(2009:2024)) |>
 -   Dez concorrentes do Brasil foram selecionados para uma análise comparativa: Peru, República Dominicana, Colômbia, Espanha, Chile, Costa Rica, Jamaica, Cuba, Argentina e Mexico.
 
 ```{r}
-#| label: Mapa dos concorrentes
+#| label: fig-mapa-concorrentes
+#| fig-cap: "Mapa ilustrativo do Brasil e principais concorrentes"
+
 library(sf)
 library(ggplot2)
 library(dplyr)
@@ -368,13 +416,16 @@ ggplot(mundo) +
     axis.ticks = element_blank(),
     legend.position = "none"
   ) +
-  labs(title = "Brasil e principais concorrentes")
+  labs(title = "Mapa ilustrativo do Brasil e principais concorrentes")
 
 ```
 
 -   A Espanha e, em segundo lugar, o México claramente destoam dos demais países deste grupo em termos de volume de chegadas internacionais.
 
 ```{r}
+#| label: fig-treemap-chegadas-brasil
+#| fig-cap: "Chegadas turísticas internacionais em países concorrentes selecionados - 2019 (milhão)"
+
 library(treemapify)
 
 bd |> dplyr::select(destino, ano, chegadas)  |> 
@@ -385,11 +436,14 @@ bd |> dplyr::select(destino, ano, chegadas)  |>
                             formatC(round(chegadas/1000, 1), format = "f", big.mark = ".", decimal.mark = ",", digits = 1)))) +
   geom_treemap(show.legend = FALSE) +
   geom_treemap_text() +
-  labs(title = "Chegadas turísticas internacionais em países\n concorrentes selecionados - 2019 (em mil)")
+  labs(title = "Chegadas turísticas internacionais em países\n concorrentes selecionados - 2019 (milhão)")
 
 ```
 
 ```{r}
+#| label: fig-boxplot-chegadas-concorrentes
+#| fig-cap: "Distribuição das chegadas turísticas internacionais, por país"
+
 # Boxplot do total das chegadas
 bd |> filter(ano %in% 2010:2024) |> 
   mutate(destino = fct_reorder(destino, if_else(ano == 2024, pct, NA_real_),
@@ -398,15 +452,18 @@ bd |> filter(ano %in% 2010:2024) |>
    labs(
     title = "Distribuição das chegadas turísticas internacionais, por país",
     y = "Chegadas (mil)",
-    x = "País de destino") + 
-  scale_x_discrete(labels = scales::label_wrap(10))
+    x = "Destino") + 
+  scale_x_discrete(labels = scales::label_wrap(10)) +
+  scale_y_continuous(labels = fun_formatC_inteiros)
 
 ```
 
 -   O gráfico a seguir mostra o ranking destes países ao longo do tempo. Nota-se o Brasil majoritariamente na quarta posição, abaixo da Argentina e acima da República Dominicana.
 
 ```{r}
-#| label: Ranking dos países
+#| label: fig-ranking-chegadas-concorrentes
+#| fig-cap: "Ranking anual de destinos por chegadas"
+
 df_rank <- hl_long |> filter(destino != "World", ano %in% c(2010:2024)) %>%
   group_by(ano) %>%
   mutate(rank = rank(-chegadas, ties.method = "min")) %>%
@@ -444,12 +501,16 @@ ggplot(df_rank, aes(x = ano, y = rank, group = destino, color = destino, shape =
 -   O Brasil tem a quinta maior média de chegadas entre os 11 países analisados.
 
 ```{r}
+#| label: tbl-chegadas-concorrentes
+#| tbl-cap: "Chegadas turísticas internacionais, por país e ano (mil)"
+
 library(gt)
 bd |> dplyr::select(destino, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
   pivot_wider(id_cols = destino, values_from = chegadas, names_from = ano, names_sort = TRUE) |> 
   rowwise() |> mutate(Média = mean(c_across(`2010`:`2024`), na.rm = TRUE)) |>  ungroup() |> 
   arrange(desc(Média)) |> 
-  gt() |> 
+  gt(rowname_col = "destino") |>
+  tab_stubhead(label = "Concorrentes") |> 
   data_color(
     columns = `2010`:`2024`, 
     target_columns = `2010`:`2024`, 
@@ -463,27 +524,43 @@ bd |> dplyr::select(destino, ano, chegadas) |> filter(ano %in% 2010:2024) |>
 ```
 
 ```{r}
-#| label: Gráfico do volume de todos os países
 #| fig-height: 16
 #| fig-width: 10
+#| label: fig-chegadas-por-pais
+#| fig-cap: "Total de chegadas turísticas internacionais, por país e ano"
 
 # Gráfico do volume de todos os países
 bd |> filter(ano %in% 2010:2024) |> 
+  group_by(destino) |> 
+  mutate(media = mean(chegadas, na.rm = TRUE)) |> 
+  ungroup() |> 
   ggplot(aes(x = ano, y = chegadas)) +
   geom_bar(stat="identity") +
+  geom_hline(aes(yintercept = media), 
+             color = "blue", linetype = "dashed", linewidth = 0.8, alpha = 0.5) +
   geom_text(aes(label = formatC(chegadas, format = "f", big.mark = ".", decimal.mark = ",", digits = 1)), 
             position = position_dodge(width = 0.9), 
             vjust = -0.3, size = 2.5) +
    scale_x_continuous(breaks = seq(2010, 2024, 2),
                       minor_breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(labels = fun_formatC_inteiros) +
   labs(
-    title = "Total de chegadas turísticas internacionais, por ano",
+    title = "Total de chegadas turísticas internacionais, por país e ano",
     y = "Chegadas (mil)",
-    x = "Ano") + 
+    x = "Ano",
+    caption = "A linha tracejada mostra a média de todo o período") + 
   facet_wrap(~destino, scales = "free_y", ncol = 2, axes = "all_x")
 ```
 
 ```{r}
+#| label: fig-chegadas-concorrentes
+#| fig-cap: "Total de chegadas turísticas internacionais, por país e ano"
+#| fig-subcap: 
+#|   - "Conjunto completo de concorrentes"
+#|   - "Excluindo Espanha e México"
+#| layout-nrow: 2
+
+
 # Gráfico das chegadas por país
 bd |> filter(ano %in% 2010:2024) |> 
     mutate(destino = fct_reorder(destino, if_else(ano == 2024, chegadas, NA_real_),
@@ -495,7 +572,8 @@ bd |> filter(ano %in% 2010:2024) |>
     y = "Chegadas (mil)",
     x = "Ano") + 
   scale_x_continuous(breaks = seq(2010, 2024, 2),
-                      minor_breaks = seq(2010, 2024, 1))
+                      minor_breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(labels = fun_formatC_inteiros)
 
 # Gráfico das chegadas por país, sem Espanha e México
 bd |> filter(ano %in% 2010:2024, !destino %in% c("Spain", "Mexico")) |> 
@@ -505,6 +583,7 @@ bd |> filter(ano %in% 2010:2024, !destino %in% c("Spain", "Mexico")) |>
   geom_area() +
   scale_x_continuous(breaks = seq(2010, 2024, 2),
                       minor_breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(labels = fun_formatC_inteiros) +
   labs(
     title = "Total de chegadas turísticas internacionais, por ano",
      subtitle = "Espanha e México excluídos",
@@ -518,7 +597,9 @@ bd |> filter(ano %in% 2010:2024, !destino %in% c("Spain", "Mexico")) |>
 -   O Brasil não recuperou a participação que tinha em 2019, antes da declaração oficial da pandemia. É o mesmo que acontece com Argentina, Cuba e Costa Rica (neste último caso a diferença é de apenas 0,1%).
 
 ```{r}
-# Boxplot da participação
+#| label: fig-boxplot-participacao-concorrentes
+#| fig-cap: "Participação nas chegadas turísticas internacionais, por país"
+
 bd |> filter(ano %in% 2010:2024) |> 
     mutate(destino = fct_reorder(destino, if_else(ano == 2024, pct, NA_real_),
                        .fun = max, .na_rm = TRUE, .desc = TRUE)) |> 
@@ -527,18 +608,22 @@ bd |> filter(ano %in% 2010:2024) |>
    labs(
     title = "Participação nas chegadas turísticas internacionais, por país",
     y = "Participação (%)",
-    x = "País de destino") +
+    x = "Destino") +
   scale_y_continuous(breaks = seq(0, 8, 1),
                      minor_breaks = seq(0,8,.25)) +
   scale_x_discrete(labels = scales::label_wrap(10))
 ```
 
 ```{r}
+#| label: tbl-participacao-concorrentes
+#| tbl-cap: "Participação nas chegadas internacionais, por país e ano (%)"
+
 bd |> dplyr::select(destino, ano, pct) |> filter(ano %in% 2010:2024) |> 
   pivot_wider(id_cols = destino, values_from = pct, names_from = ano, names_sort = TRUE) |> 
   rowwise() |> mutate(Média = mean(c_across(`2010`:`2024`), na.rm = TRUE)) |>  ungroup() |> 
   arrange(desc(Média)) |> 
-  gt() |> 
+  gt(rowname_col = "destino") |>
+  tab_stubhead(label = "Concorrentes") |> 
   data_color(
     columns = `2010`:`2024`, 
     target_columns = `2010`:`2024`, 
@@ -552,30 +637,40 @@ bd |> dplyr::select(destino, ano, pct) |> filter(ano %in% 2010:2024) |>
 ```
 
 ```{r}
-#| label: Gráfico da participação de todos os países
+#| label: fig-participacao-por-concorrente
+#| fig-cap: "Participação no total de chegadas turísticas internacionais, por país e ano"
 #| fig-height: 12
 #| fig-width: 8
 
-# Gráfico da participação de todos os países
 bd |> filter(ano %in% 2010:2024) |> 
+  group_by(destino) |> 
+  mutate(media = mean(pct, na.rm = TRUE)) |> 
+  ungroup() |> 
   ggplot(aes(x = ano, y = pct)) +
   geom_bar(stat="identity") +
+  geom_hline(aes(yintercept = media), 
+             color = "blue", linetype = "dashed", linewidth = 0.8, alpha = 0.5) +
   geom_text(aes(label = formatC(pct, format = "f", big.mark = ".", decimal.mark = ",", digits = 2)), 
             position = position_dodge(width = 0.9), 
             vjust = -0.3, size = 2.5) +
-  geom_line(stat="smooth",method = "lm", formula = y ~ x,
-              linewidth = 1, alpha = 0.3, colour = "blue") +
-   scale_x_continuous(breaks = seq(2010, 2024, 2),
+  scale_x_continuous(breaks = seq(2010, 2024, 2),
                       minor_breaks = seq(2010, 2024, 1)) +
   labs(
-    title = "Participação no total de chegadas turísticas internacionais, por ano",
+    title = "Participação no total de chegadas turísticas internacionais, por país e ano",
     y = "Participação (%)",
-    x = "Ano") + 
+    x = "Ano",
+    caption = "A linha tracejada mostra a média de todo o período") + 
   facet_wrap(~destino, scales = "free_y", ncol = 2, axes = "all_x")
 ```
 
 ```{r}
-# Gráfico da participação
+#| label: fig-participacao-concorrentes
+#| fig-cap: "Participação nas chegadas turísticas internacionais, por país e ano"
+#| fig-subcap: 
+#|   - "Conjunto completo de concorrentes"
+#|   - "Excluindo Espanha e México"
+#| layout-nrow: 2
+
 bd |> filter(ano %in% 2010:2024) |> 
     mutate(destino = fct_reorder(destino, if_else(ano == 2024, pct, NA_real_),
                        .fun = max, .na_rm = TRUE)) |> 
@@ -874,6 +969,7 @@ dssa$resumo_geral |> arrange(desc(Total_GCSE_Mundo)) |> knitr::kable(caption = "
 ### Evolução da participação dos mercados selecionados no emissivo mundial
 
 ```{r}
+#| label: Importa dados emissivo mundial
 bde <- read_excel("data/UN_Tourism_bulk_data_download_12_2025/03_Outbound/01_Total_departures/UN_Tourism_outbound_departures_12_2025.xlsx", 
                   sheet = "Data",
                   col_types = c("text", "text", "text", "numeric", "text", "numeric",
@@ -902,6 +998,8 @@ mercados <- c("Argentina","Chile","Paraguay","Uruguay", # Mercados consolidados
 - O gráfico a seguir dá uma dimensão dos principais emissores mundiais. A partir da soma dos resultados do período de 2010 a 2024, o gráfico apresenta o percentual relativo aos 20 países mais relevantes.
 
 ```{r}
+#| label: fig-emissivo-treemap-partidas
+#| fig-cap: "Participação dos principais países emissores mundiais no total de partidas do período 2010 a 2024"
 bde |> summarise(partidas = sum(partidas), .by = origem) |> 
   mutate(pct = round(partidas / sum(partidas) * 100, 1)) |> 
   slice_max(partidas, n = 20) |>  
@@ -912,7 +1010,7 @@ bde |> summarise(partidas = sum(partidas), .by = origem) |>
                             "%"))) +
   geom_treemap(show.legend = FALSE) +
   geom_treemap_text() +
-  labs(title = "Chegadas turísticas internacionais em países\n concorrentes selecionados - 2019 (em mil)")
+  labs(title = "Participação dos principais países emissores mundiais no total de partidas do período 2010 a 2024")
 
 ```
 
@@ -920,6 +1018,7 @@ bde |> summarise(partidas = sum(partidas), .by = origem) |>
 #### Principais emissores do Brasil
 
 ```{r}
+#| label: Importa dados emissores Brasil
 bdc <- readRDS("data/chegadas/chegadas.rds")
 
 principais <- bdc |> filter(ano == 2024) |> 
@@ -928,22 +1027,63 @@ principais <- bdc |> filter(ano == 2024) |>
 
 bdc <- bdc |> filter(pais %in% principais) |> 
   summarise(chegadas = sum(chegadas), .by = c(pais, ano))
+```
+
+- Os 20 principais emissores para o Brasil representaram em média 88,5% do total de chegadas de turistas ao Brasil no período 2010-2024.
+
+- A Argentina historicamente é o principal emissor para o Brasil, com Estados Unidos em segundo lugar.
+
+- Argentina em 2024 teve quase 29% do total brasileiro, enquanto EUA teve 11%.
+
+- Chile, Paraguai e Uruguai se alternam nas posições seguintes.
+
+- Em seguida há o bloco dos principais países europeus, composto por França, Alemanha, Itália, Portugal, Reino Unido e Espanha.
+
+- Há dois países asiáticos entre os principais emissores para o Brasil: Japão e China.
+
+```{r}
+#| label: tbl-chegadas-brasil-paises
+#| tbl-cap: "Chegadas turísticas internacionais ao Brasil, por país e ano (mil)"
+#| tbl-subtitle: "20 principais emissores para o Brasil"
 
 bdc |> dplyr::select(pais, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
   pivot_wider(id_cols = pais, values_from = chegadas, names_from = ano, names_sort = TRUE) |> 
   rowwise() |> mutate(Média = mean(c_across(`2010`:`2024`), na.rm = TRUE)) |>  ungroup() |> 
   arrange(desc(Média)) |> 
-  gt() |> 
+  gt(rowname_col = "pais") |>
+  tab_stubhead(label = "Mercados") |>  
   data_color(
     columns = `2010`:`2024`, 
     target_columns = `2010`:`2024`, 
     method = "numeric",
     palette = "Blues") |> 
   fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
-  tab_header(title = "Chegadas turísticas internacionais, por país e ano (mil)") |> 
+  tab_header(title = "Chegadas turísticas internacionais ao Brasil, por país e ano (mil)",
+             subtitle = "20 principais emissores para o Brasil") |> 
   tab_style(
     style = cell_text(weight = "bold"),
     locations = cells_body(columns = Média))
+
+
+
+```
+
+```{r}
+#| include: false
+tot_c <- bdc |> dplyr::select(pais, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
+  summarise(soma=sum(chegadas), .by = ano)
+
+tot_br <- bd |> filter(destino == "Brazil", ano %in% c(2010:2024)) |> summarise(soma=sum(chegadas), .by = ano)
+
+tot <- left_join(tot_c,tot_br,by="ano")
+tot <- tot |> mutate(pct = round((soma.x/1000) / soma.y * 100,1))
+mean(tot$pct)
+```
+
+```{r}
+#| label: fig-chegadas-brasil-20principais
+#| fig-cap: "Chegadas turísticas internacionais no Brasil, por ano"
+#| fig-subtitle: "20 principais emissores para o Brasil"
 
 # Gráfico das chegadas no Brasil por país
 bdc |> filter(ano %in% 2010:2024) |> 
@@ -954,14 +1094,20 @@ bdc |> filter(ano %in% 2010:2024) |>
   geom_area(size=.3, colour="grey") +
   scale_x_continuous(breaks = seq(2010, 2024, 2),
                      minor_breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(labels = fun_formatC_inteiros) +
   labs(
     title = "Chegadas turísticas internacionais no Brasil, por ano",
     subtitle = "20 principais emissores para o Brasil",
     y = "Chegadas (mil)",
     x = "Ano",
-    fill = "País de origem") +
+    fill = "Mercado") +
   theme(legend.position = "bottom")
+```
 
+```{r}
+#| label: tbl-variacao-brasil-emissores
+#| tbl-cap: "Variação anual das chegadas turísticas internacionais ao Brasil, por país e ano (mil)"
+#| tbl-subtitle: "20 principais emissores para o Brasil"
 
 # Taxa de crescimento do Brasil e do mundo
 bdc_temp <- bdc |> filter(ano %in% c(2009:2024)) |> 
@@ -978,7 +1124,8 @@ cols_color <- c(as.character(2010:2019), "2024")
 bdc_temp |> 
   pivot_wider(id_cols = pais, values_from = variacao, names_from = ano, names_sort = TRUE) |> 
   arrange(pais) |> 
-  gt() |> 
+  gt(rowname_col = "pais") |>
+  tab_stubhead(label = "Mercados") |> 
   data_color(
     columns = all_of(cols_color),, 
     target_columns = all_of(cols_color),, 
@@ -989,15 +1136,50 @@ bdc_temp |>
   tab_header(title = "Variação anual das chegadas turísticas internacionais ao Brasil, por país e ano (mil)",
              subtitle = "20 principais emissores para o Brasil")
 
-# OBS: falta a participação de cada país no total
-
 ```
+- Os dados dos principais emissores a respeito do volume de chegadas e da taxa anual de crescimento das chegadas ao Brasil mostram uma tendência de queda da fluxo de alguns países europeus. 
 
+- Por outro lado, o Brasil apresenta um bom desempenho na atração de turistas da América do Sul, em particular.
+
+```{r}
+#| fig-height: 20
+#| fig-width: 10
+#| label: fig-emissores-brasil
+#| fig-cap: "Chegadas turísticas internacionais ao Brasil, por país e ano (%)"
+
+# Gráfico do volume de todos os países
+bdc |> filter(ano %in% 2010:2024) |> 
+  mutate(chegadas = chegadas / 1000) |> 
+  group_by(pais) |>
+  mutate(media = mean(chegadas, na.rm = TRUE)) |> 
+  ungroup() |> 
+  ggplot(aes(x = ano, y = chegadas)) +
+  geom_bar(stat="identity", na.rm = TRUE) +
+  geom_hline(aes(yintercept = media), 
+             color = "blue", linetype = "dashed", linewidth = 0.8, alpha = 0.5) +
+  geom_text(aes(label = formatC(chegadas, format = "f", big.mark = ".", decimal.mark = ",", digits = 2)),
+            na.rm = TRUE, 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.3, size = 2.5) +
+   scale_x_continuous(breaks = seq(2010, 2024, 2),
+                      minor_breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(labels = fun_formatC_inteiros) +
+  labs(
+    title = "Chegadas turísticas internacionais ao Brasil, por país e ano (%)",
+    y = "Chegadas (mil)",
+    x = "Ano",
+    caption = "A linha tracejada mostra a média de todo o período") + 
+  facet_wrap(~pais, scales = "free_y", ncol = 2, axes = "all_x")
+```
 
 #### Mercados selecionados: quem são, quanto representam e quanto cresceram
 ##### Quem são?
+
+- China, Alemanha e Estados Unidos são os principais emissores deste grupo - o mesmo que acontece em escala global.
+
 ```{r}
-#| label: Mapa dos mercados
+#| label: fig-mapa-mercados
+#| fig-cap: "Mapa ilustrativo do Brasil e mercados de interesse"
 library(sf)
 library(ggplot2)
 library(dplyr)
@@ -1054,13 +1236,15 @@ ggplot(mundo) +
     axis.ticks = element_blank(),
     legend.position = "none"
   ) +
-  labs(title = "Brasil e Mercados de interesse")
+  labs(title = "Mapa ilustrativo do Brasil e mercados de interesse")
 
 ```
 
 ##### Quanto representam do total?
 
 ```{r}
+#| label: Prepara dados mercados de interesse
+
 bd_mundo <- bd_mundo |> filter(ano %in% 2010:2024)
 
 bd_mercados <- bde |> filter(origem %in% mercados, ano %in% 2010:2024) |> 
@@ -1080,10 +1264,11 @@ bd_mercados <- left_join(bd_mercados, bd_mundo, by = "ano") |>
 `r bd_mercados |> filter(ano %in% 2010:2024) |> summarise(media = round(mean(pct),1)) |> pull(media)` %.
 
 
-
 - A queda pós-pandemia muito provavelmente é por conta de ausência de dados.
 
 ```{r}
+#| label: fig-participacao-mercados-total
+#| fig-cap: "Participação dos mercados selecionados no total mundial de partidas, por ano"
 
 bd_mercados |> 
   ggplot(aes(x = ano, y = pct)) +
@@ -1105,8 +1290,11 @@ bd_mercados |>
 
 ##### Como foi sua evolução ao longo do tempo?
 
+- É notável como a China ganhou importância como emissor: o volume de partidas de 2024 é 2,7 vezes maior que o de 2010.
+
 ```{r}
-#| label: emissivo boxplot partidas
+#| label: fig-emissivo-boxplot-partidas
+#| fig-cap: "Distribuição das partidas turísticas internacionais, por país"
 #| fig-height: 10
 
 
@@ -1120,20 +1308,25 @@ bde |> filter(origem %in% mercados, ano %in% 2010:2024) |>
   labs(
     title = "Distribuição das partidas turísticas internacionais, por país",
     y = "Partidas (mil)",
-    x = "País de origem") + 
+    x = "Mercado") + 
   scale_x_discrete(labels = scales::label_wrap(20)) +
+  scale_y_continuous(labels = fun_formatC_inteiros) +
   coord_flip()
 
 ```
 
 ```{r}
+#| label: tbl-partidas-mercados
+#| tbl-cap: "Partidas turísticas internacionais, por país e ano (mil)"
+
 library(gt)
 bde |> filter(origem %in% mercados, ano %in% 2010:2024) |> 
   dplyr::select(origem, ano, partidas) |> filter(ano %in% 2010:2024) |> 
   pivot_wider(id_cols = origem, values_from = partidas, names_from = ano, names_sort = TRUE) |> 
   rowwise() |> mutate(Média = mean(c_across(`2010`:`2024`), na.rm = TRUE)) |>  ungroup() |> 
   arrange(desc(Média)) |> 
-  gt() |> 
+  gt(rowname_col = "origem") |>
+  tab_stubhead(label = "Mercados") |> 
   data_color(
     columns = `2010`:`2024`, 
     target_columns = `2010`:`2024`, 
@@ -1148,30 +1341,39 @@ bde |> filter(origem %in% mercados, ano %in% 2010:2024) |>
 
 
 ```{r}
-#| label: emissivo volume facet
+#| label: fig-emissivo-volume-facet
+#| fig-cap: "Total de partidas turísticas internacionais, por ano"
 #| fig-height: 28
 #| fig-width: 12
 
 # Gráfico do volume de todos os países
 bde |> filter(origem %in% mercados, ano %in% 2010:2024) |> 
+  group_by(origem) |> 
+  mutate(media = mean(partidas, na.rm = TRUE)) |> 
+  ungroup() |> 
   ggplot(aes(x = ano, y = partidas)) +
   geom_bar(stat="identity") +
+  geom_hline(aes(yintercept = media), 
+             color = "blue", linetype = "dashed", linewidth = 0.8, alpha = 0.5) +
   geom_text(aes(label = formatC(partidas, format = "f", big.mark = ".", decimal.mark = ",", digits = 1)), 
             position = position_dodge(width = 0.9), 
             vjust = -0.3, size = 2.5) +
   scale_x_continuous(breaks = seq(2010, 2024, 2),
                      minor_breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(labels = fun_formatC_inteiros) +
   labs(
     title = "Total de partidas turísticas internacionais, por ano",
     y = "partidas (mil)",
-    x = "Ano") + 
+    x = "Ano",
+    caption = "A linha tracejada mostra a média de todo o período") + 
   facet_wrap(~origem, scales = "free_y", ncol = 2, axes = "all_x")
 ```
 
 
 ```{r}
-#| label: emissivo area volume
-#| fig-height: 10
+#| label: fig-emissivo-area-volume
+#| fig-cap: "Total de partidas turísticas internacionais, por ano"
+#| fig-height: 14
 #| fig-width: 12 
 
 # Gráfico do total das partidas
@@ -1188,9 +1390,123 @@ bde |> filter(origem %in% mercados, ano %in% 2010:2024) |>
     x = "Ano") + 
   scale_x_continuous(breaks = seq(2010, 2024, 2),
                      minor_breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(labels = fun_formatC_inteiros) +
   theme(legend.position = "bottom")
 
 ```
 
 ### Decomposição da participação dos mercados selecionados no emissivo turístico internacional 
 ### Evolução da participação do Brasil no emissivo internacional dos mercados selecionados
+
+```{r}
+#| label: Importa dados de market-share do Brasil
+library(readxl)
+bdms <- read_excel("data/participacao_brasil_mercados.xlsx")
+bdms <- janitor::clean_names(bdms)
+bdms <- bdms |> rename(
+  chegadas_br = chegadas_no_brasil,
+  partidas_mercado = saidas_para_o_mundo_total,
+  pct_br = market_share_brasil_percent)
+bdms <- bdms |> mutate(pct_br = round(pct_br, 2))
+```
+
+
+```{r}
+#| label: tbl-ms-pais
+#| tbl-cap: "Participação do Brasil nos mercados selecionados, por país e ano (%)"
+#| 
+cols_color <- c(as.character(2010:2019), "2024")
+
+bdms |> dplyr::select(ano, origem, pct_br) |> filter(ano %in% 2010:2024) |> 
+  pivot_wider(id_cols = origem, values_from = pct_br, names_from = ano, names_sort = TRUE) |> 
+  rowwise() |> mutate(Média = mean(c_across(`2010`:`2024`), na.rm = TRUE)) |>  ungroup() |> 
+  arrange(desc(Média)) |> 
+  gt(rowname_col = "origem") |>
+  tab_stubhead(label = "Mercados") |> 
+  data_color(
+    columns = all_of(cols_color), 
+    target_columns = all_of(cols_color), 
+    method = "numeric",
+    palette = "Blues") |> 
+  fmt_number(decimals = 2, sep_mark = ".", dec_mark = ",") |> 
+  tab_header(title = "Participação do Brasil nos mercados selecionados, por país e ano (%)") |> 
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(columns = Média))
+
+
+```
+
+- Na maioria dos mercados selecionados, a participação do Brasil nos anos mais recentes é inferior à média histórica. Isso pode sugerir maior dificuldade de recuperar mercados, em comparação com concorrentes.
+
+```{r}
+#| fig-height: 20
+#| fig-width: 10
+#| label: fig-ms-por-pais
+#| fig-cap: "Participação do Brasil nos mercados selecionados, por país e ano (%)"
+
+# Gráfico do volume de todos os países
+bdms |> dplyr::select(ano, origem, pct_br) |> 
+  filter(ano %in% 2010:2024) |> 
+  group_by(origem) |>
+  mutate(media = mean(pct_br, na.rm = TRUE)) |> 
+  ungroup() |> 
+  ggplot(aes(x = ano, y = pct_br)) +
+  geom_bar(stat="identity", na.rm = TRUE) +
+  geom_hline(aes(yintercept = media), 
+             color = "blue", linetype = "dashed", linewidth = 0.8, alpha = 0.5) +
+  geom_text(aes(label = formatC(pct_br, format = "f", big.mark = ".", decimal.mark = ",", digits = 2)),
+            na.rm = TRUE, 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.3, size = 2.5) +
+   scale_x_continuous(breaks = seq(2010, 2024, 2),
+                      minor_breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(labels = fun_formatC_inteiros) +
+  labs(
+    title = "Participação do Brasil nos mercados selecionados, por país e ano (%)",
+    y = "Participação (%)",
+    x = "Ano",
+    caption = "A linha tracejada mostra a média de todo o período") + 
+  facet_wrap(~origem, scales = "free_y", ncol = 2, axes = "all_x")
+```
+
+- De modo geral, houve crescimento da participação do Brasil nos mercados selecionados em 2014, certamente em razão da Copa do Mundo 2014 de Futebol Masculino. 
+
+- Segue-se um movimento de queda de participação entre 2015 e 2017, seguido por alguns sinais de melhora principalmente em 2019, até que veio a pandemia.
+
+- Devido à ausência de dados do turismo emissivo para muitos países nos anos mais recentes, não é possível compreender com suficiente grau de clareza o panorama da participação do Brasil nos mercados selecionados em 2024.
+
+```{r}
+#| label: tbl-variacao-ms-brasil-emissores
+#| tbl-cap: "Variação anual da participação do Brasil nos mercados selecionados, por país e ano (%)"
+#| tbl-subtitle: "20 principais emissores para o Brasil"
+
+# Taxa de crescimento do Brasil e do mundo
+bdms_temp <- bdms |> filter(ano %in% c(2010:2024)) |> 
+  mutate(variacao = round((pct_br / lag(pct_br) - 1) * 100, 1), .by = origem) |>
+  filter(ano %in% c(2011:2024))
+
+var_max <- bdms_temp |> filter(ano %in% c(2011:2019,2024)) |> 
+  mutate(variacao = abs(variacao)) |> 
+  slice_max(variacao, n=1) |> 
+  pull()
+
+cols_color <- c(as.character(2011:2019), "2024")
+
+bdms_temp |> 
+  pivot_wider(id_cols = origem, values_from = variacao, names_from = ano, names_sort = TRUE) |> 
+  arrange(origem) |> 
+  gt(rowname_col = "origem") |>
+  tab_stubhead(label = "Mercados") |> 
+  data_color(
+    columns = all_of(cols_color),, 
+    target_columns = all_of(cols_color),, 
+    method = "numeric",
+    palette = c("red", "white", "green"),
+    domain = c(-var_max, var_max)) |> 
+  fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
+  tab_header(title = "Variação anual da participação do Brasil nos mercados selecionados, por país e ano (%)",
+             subtitle = "20 principais emissores para o Brasil")
+
+
+```
