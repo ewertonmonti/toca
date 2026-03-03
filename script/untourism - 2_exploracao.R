@@ -29,6 +29,8 @@ fun_formatC_pct <- function(x) {
 
 bd <- readRDS("data/untourism_tourists_visitors.rds")
 
+
+
 head(bd)
 
 bd %<>% rename(destino = reporter_area_label, origem = partner_area_label, ano = year, turistas = value)
@@ -254,7 +256,7 @@ bd_todos <- bdp |>
   pivot_wider(id_cols = c(origem,destino), names_from = ano, values_from = turistas, names_sort = TRUE) |> 
   arrange(origem, destino)
 
-# Matriz OD ----
+# Matriz OD de países ----
 # Banco em formato de matriz
 matrizod <- bd |> 
   filter(origem %in% mercados & 
@@ -293,6 +295,59 @@ save_as_image(
 
 
 
+
+# Matriz OD de continentes x países ----
+bd |> filter(tipo_area == "regiao", str_detect(origem, "UNWTO")) |> count(origem)
+
+bd2 <- bd |> filter(tipo_area == "regiao", str_detect(origem, "UNWTO")) |> 
+  mutate(origem = case_when(
+    origem == "Americas (UNWTO total)" ~ "Americas",
+    origem == "Europe (UNWTO total)" ~ "Europe",
+    .default = "Outros")) |> 
+  summarise(turistas = sum(turistas), .by = c(origem, destino, ano))
+
+bd2 |> count(origem)
+
+matrizod <- bd2 |> 
+  filter(origem %in% c("Americas", "Europe", "Outros"  ) & 
+           destino %in% concorrentes,
+         ano %in% 2009:2019) |> 
+  group_by(origem, destino) |> 
+  rename(Destino = destino) |> 
+  count()|> 
+  pivot_wider(id_cols = Destino, names_from = origem, names_prefix = "Origem.", values_from = n, names_sort = TRUE) |> 
+  arrange(Destino)
+
+library(gt)
+matrizod |> ungroup() |> 
+  gt(rowname_col = "Destino") |>
+  tab_stubhead(label = "Concorrentes") |> 
+  data_color(
+    columns = Origem.Americas:Origem.Outros, 
+    target_columns = Origem.Americas:Origem.Outros, 
+    method = "numeric",
+    palette = "Blues") |> 
+  fmt_number(decimals = 0, sep_mark = ".", dec_mark = ",") |> 
+  tab_header(title = "Quantidade de observações anuais por origem e destino")
+
+tab <- rempsyc::nice_table(matrizod, separate.header = TRUE)	
+
+# Valores baixos = Vermelho, Valores altos = Verde
+cor_escala <- col_numeric(
+  palette = c("#ff4c4c", "#ffff8d", "#66bb6a"),
+  domain = c(5, 15)
+)
+
+# 3. Aplicar a cor de fundo à coluna específica
+tabela <- bg(tab, 
+             j = c(2:4), 
+             bg = cor_escala, 
+             part = "body")
+
+tabela
+save_as_image(
+  tabela,
+  path = "output/matrizod_continenteorigem.png")
 
 
 

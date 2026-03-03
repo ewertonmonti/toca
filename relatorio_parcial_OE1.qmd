@@ -66,6 +66,13 @@ library(magrittr)
 library(readxl)
 library(viridis)
 library(WDI)
+library(gt)
+library(sf)
+library(rnaturalearth)
+library(countrycode)
+library(streamgraph)
+library(scales)
+library(treemapify)
 
 # Funções de formatação de números
 fun_formatC_inteiros <- function(x) {
@@ -359,12 +366,6 @@ hl_long |> filter(destino %in% c("Brazil", "World"), ano %in% c(2009:2024)) |>
 #| label: fig-mapa-concorrentes
 #| fig-cap: "Mapa ilustrativo do Brasil e principais concorrentes"
 
-library(sf)
-library(ggplot2)
-library(dplyr)
-library(rnaturalearth)
-library(countrycode)
-
 paises_destacados <- c(
   "Brazil","Peru","Dominican Republic","Colombia","Spain","Chile",
   "Costa Rica","Jamaica","Cuba","Argentina","Mexico"
@@ -426,7 +427,6 @@ ggplot(mundo) +
 #| label: fig-treemap-chegadas-brasil
 #| fig-cap: "Chegadas turísticas internacionais em países concorrentes selecionados - 2019 (milhão)"
 
-library(treemapify)
 
 bd |> dplyr::select(destino, ano, chegadas)  |> 
   filter(ano == 2019) |> 
@@ -447,7 +447,8 @@ bd |> dplyr::select(destino, ano, chegadas)  |>
 # Boxplot do total das chegadas
 bd |> filter(ano %in% 2010:2024) |> 
   mutate(destino = fct_reorder(destino, if_else(ano == 2024, pct, NA_real_),
-                       .fun = max, .na_rm = TRUE, .desc = TRUE)) |> ggplot(aes(x = destino, y = chegadas)) +
+                       .fun = max, .na_rm = TRUE, .desc = TRUE)) |> 
+  ggplot(aes(x = destino, y = chegadas)) +
   geom_boxplot() +
    labs(
     title = "Distribuição das chegadas turísticas internacionais, por país",
@@ -504,7 +505,7 @@ ggplot(df_rank, aes(x = ano, y = rank, group = destino, color = destino, shape =
 #| label: tbl-chegadas-concorrentes
 #| tbl-cap: "Chegadas turísticas internacionais, por país e ano (mil)"
 
-library(gt)
+
 bd |> dplyr::select(destino, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
   pivot_wider(id_cols = destino, values_from = chegadas, names_from = ano, names_sort = TRUE) |> 
   rowwise() |> mutate(Média = mean(c_across(`2010`:`2024`), na.rm = TRUE)) |>  ungroup() |> 
@@ -964,6 +965,432 @@ dssa$resumo_geral |> arrange(desc(Total_GCSE_Mundo)) |> knitr::kable(caption = "
 
 ```
 
+#### Shift-share com extensão de Esteban-Marquillas
+
+- Análise aplicada em turismo para conjunto de origens e destinos (5 artigos).
+
+- Impossibilidade de montar uma extensa matriz origem-destino.
+
+- Temos uma matriz de sete países e 3 mercados, de 2010 a 2019.
+
+  - **Concorrentes**: Brasil, Argentina, Colômbia, Cuba, República Dominicana, Jamaica, Peru
+  
+    - Espanha destoa muito.
+    
+    - Não há dados para Chile, Costa Rica e México.
+    
+  - **Mercados**: Américas, Europa, Outros.
+    
+    
+  
+
+
+
+```{r}
+#| label: Prepara dados Esteban-Marquillas
+#| include: false
+
+bd <- readRDS("data/untourism_tourists_visitors.rds")
+bd %<>% rename(destino = reporter_area_label, origem = partner_area_label, ano = year, turistas = value)
+bd %<>% relocate(origem, destino)
+bd %<>% mutate(tipo_area = ifelse(partner_area_code > 1000, "regiao","pais"))
+concorrentes <- c("Argentina", "Brazil", "Colombia", "Cuba", "Dominican Republic", "Jamaica", "Peru")
+concorrentes_com_Espanha <- c("Argentina", "Brazil", "Colombia", "Cuba", "Dominican Republic", "Jamaica", "Peru", "Spain")
+
+
+bd <- bd |> filter(tipo_area == "regiao", str_detect(origem, "UNWTO"), destino %in% concorrentes) |> 
+  mutate(origem = case_when(
+    origem == "Americas (UNWTO total)" ~ "Americas",
+    origem == "Europe (UNWTO total)" ~ "Europe",
+    .default = "Outros")) |> 
+  summarise(turistas = sum(turistas), .by = c(origem, destino, ano)) |> 
+  rename(chegadas = turistas)
+```
+
+##### Descrição do grupo de comparação
+```{r}
+#| label: fig-em-desc-benchmark
+#| fig-cap: "Total de chegadas turísticas internacionais, por ano (2010-2019)"
+
+# Gráfico da composição deste grupo
+bd |> 
+  filter(destino %in% concorrentes, ano %in% 2010:2019) |>
+  summarise(chegadas = sum(chegadas), .by = c(destino, ano)) |> 
+  ggplot(aes(x = ano, y = chegadas, fill = destino)) +
+  geom_area() +
+  labs(
+    title = "Total de chegadas turísticas internacionais, por ano (2010-2019)",
+    subtitle = "Grupo de comparação com 7 países",
+    y = "Chegadas (mil)",
+    x = "Ano") + 
+  scale_x_continuous(breaks = seq(2010, 2019, 1)) + 
+  scale_y_continuous(labels = fun_formatC_inteiros)
+```
+
+
+```{r}
+#| label: fig-em-desc-benchmark-2019
+#| fig-cap: "Participação de cada país no total das chegadas do grupo de comparação (2019)"
+
+bd |> 
+  filter(destino %in% concorrentes, ano == 2019) |>
+  summarise(chegadas = sum(chegadas), .by = destino) |> 
+  mutate(chegadas = round(chegadas / sum(chegadas) * 100, 1)) |> 
+  slice_max(chegadas, n = 20) |>  
+  ggplot(aes(area = chegadas, fill = destino, 
+             label = paste0(destino, 
+                            "\n",
+                            formatC(round(chegadas, 1), format = "f", big.mark = ".", decimal.mark = ",", digits = 1),
+                            "%"))) +
+  geom_treemap(show.legend = FALSE) +
+  geom_treemap_text() +
+  labs(title = "Participação de cada país no total das chegadas do grupo de comparação (2019)")
+```
+
+
+```{r}
+#| label: Funções e execução SSA-EM
+#| include: false
+
+# Shift-share estático + Esteban-Marquillas ----
+
+shift_share_static_em <- function(bd, year0 = 2009, year1 = 2019) {
+  
+  # --- checagens mínimas
+  stopifnot(all(c("ano","origem","destino","chegadas") %in% names(bd)))
+  if (!all(c(year0, year1) %in% unique(bd$ano))) {
+    stop("year0 e/ou year1 não existem em bd$ano.")
+  }
+  
+  # --- agrega caso haja duplicidades por célula
+  df <- bd %>%
+    filter(ano %in% c(year0, year1)) %>%
+    group_by(ano, origem, destino) %>%
+    summarise(chegadas = sum(chegadas, na.rm = TRUE), .groups = "drop")
+  
+  # --- completa combinações faltantes como 0 (opcional, mas ajuda na consistência)
+  # Se você não quiser completar com zeros, me diga.
+  df <- df %>%
+    tidyr::complete(
+      ano = c(year0, year1),
+      origem,
+      destino,
+      fill = list(chegadas = 0)
+    )
+  
+  wide <- df %>%
+    pivot_wider(names_from = ano, values_from = chegadas, names_sort = TRUE) %>%
+    rename(T0 = !!as.character(year0),
+           T1 = !!as.character(year1))
+  
+  # --- totais necessários
+  T0_AREA  <- sum(wide$T0)
+  T1_AREA  <- sum(wide$T1)
+  if (T0_AREA == 0) stop("T0_AREA = 0. Não dá para calcular G_AREA.")
+  
+  G_AREA <- (T1_AREA - T0_AREA) / T0_AREA
+  
+  # Totais por origem para a 'área' (benchmark = conjunto de destinos)
+  by_orig <- wide %>%
+    group_by(origem) %>%
+    summarise(T0_iAREA = sum(T0), T1_iAREA = sum(T1), .groups = "drop") %>%
+    mutate(
+      denom_ok = T0_iAREA != 0,
+      G_iAREA  = if_else(denom_ok, (T1_iAREA - T0_iAREA) / T0_iAREA, NA_real_)
+    )
+  
+  # Totais por destino no período 0
+  by_dest0 <- wide %>%
+    group_by(destino) %>%
+    summarise(T0_j = sum(T0), .groups = "drop")
+  
+  # Junta tudo
+  out <- wide %>%
+    left_join(by_orig,  by = "origem") %>%
+    left_join(by_dest0, by = "destino") %>%
+    mutate(
+      # checagens de denominadores
+      denom_ok_cell  = (T0 != 0),
+      denom_ok_iAREA = (T0_iAREA != 0),
+      
+      # taxas
+      G_ij = if_else(denom_ok_cell, (T1 - T0) / T0, NA_real_),
+      
+      # homotético (T_hat_ij = T0_j * (T0_iAREA / T0_AREA))
+      T_hat = T0_j * (T0_iAREA / T0_AREA),
+      
+      # componentes (Alavi & Yasin / Toh et al.)
+      actual_growth = T1 - T0,
+      area_wide     = T0 * G_AREA,
+      mix_effect    = T0 * (G_iAREA - G_AREA),
+      competitive   = T_hat * (G_ij - G_iAREA),
+      allocation    = (T0 - T_hat) * (G_ij - G_iAREA),
+      
+      # checagem de identidade
+      check_sum = area_wide + mix_effect + competitive + allocation
+    )
+  
+  # --- se houver casos que impedem cálculo (NA em taxas), pare e avise
+  bad <- out %>% filter(is.na(G_iAREA) | is.na(G_ij))
+  if (nrow(bad) > 0) {
+    msg <- bad %>%
+      transmute(origem, destino, T0, T1, G_iAREA, G_ij) %>%
+      head(20)
+    stop(
+      "Há células com denominador zero (T0==0 e/ou T0_iAREA==0), ",
+      "o que torna G_ij e/ou G_iAREA indefinidos.\n",
+      "Exemplos (até 20):\n",
+      paste(capture.output(print(msg)), collapse = "\n"),
+      "\n\nDiga como você quer tratar zeros (excluir, epsilon, etc.) que eu ajusto."
+    )
+  }
+  
+  list(
+    params = list(year0 = year0, year1 = year1, T0_AREA = T0_AREA, T1_AREA = T1_AREA, G_AREA = G_AREA),
+    cell_level = out %>%
+      select(ano0 = T0, ano1 = T1, origem, destino,
+             T0, T1, actual_growth, area_wide, mix_effect, competitive, allocation, check_sum),
+    by_destino = out %>%
+      group_by(destino) %>%
+      summarise(across(c(actual_growth, area_wide, mix_effect, competitive, allocation), sum), .groups = "drop"),
+    by_origem = out %>%
+      group_by(origem) %>%
+      summarise(across(c(actual_growth, area_wide, mix_effect, competitive, allocation), sum), .groups = "drop"),
+    total = out %>%
+      summarise(across(c(actual_growth, area_wide, mix_effect, competitive, allocation), sum))
+  )
+}
+
+# ---- Exemplo de execução
+res_static <- shift_share_static_em(bd, year0 = 2010, year1 = 2019)
+
+# Resultados
+res_static$total
+res_static$by_destino
+res_static$by_origem
+res_static$cell_level  # nível origem-destino
+
+
+# Shift-share dinâmico + Esteban-Marquillas ----
+# Shift-Share (Esteban-Marquillas) - Dinâmico (somatório anual)
+
+shift_share_dynamic_em <- function(bd, years = 2010:2019) {
+  
+  years <- sort(unique(years))
+  if (length(years) < 2) stop("years precisa ter pelo menos 2 anos.")
+  
+  # roda estático para cada par consecutivo e soma
+  pairs <- tibble(y0 = years[-length(years)], y1 = years[-1])
+  
+  pieces <- purrr::pmap_dfr(
+    list(pairs$y0, pairs$y1),
+    function(y0, y1) {
+      res <- shift_share_static_em(bd, year0 = y0, year1 = y1)$cell_level
+      res %>%
+        mutate(year0 = y0, year1 = y1)
+    }
+  )
+  
+  summed_cell <- pieces %>%
+    group_by(origem, destino) %>%
+    summarise(
+      actual_growth = sum(actual_growth, na.rm = TRUE),
+      area_wide     = sum(area_wide, na.rm = TRUE),
+      mix_effect    = sum(mix_effect, na.rm = TRUE),
+      competitive   = sum(competitive, na.rm = TRUE),
+      allocation    = sum(allocation, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  list(
+    years = years,
+    cell_level = summed_cell,
+    by_destino = summed_cell %>%
+      group_by(destino) %>%
+      summarise(across(c(actual_growth, area_wide, mix_effect, competitive, allocation), sum), .groups = "drop"),
+    by_origem = summed_cell %>%
+      group_by(origem) %>%
+      summarise(across(c(actual_growth, area_wide, mix_effect, competitive, allocation), sum), .groups = "drop"),
+    total = summed_cell %>%
+      summarise(across(c(actual_growth, area_wide, mix_effect, competitive, allocation), sum))
+  )
+}
+
+# Execução ----
+res_dyn <- shift_share_dynamic_em(bd, years = 2010:2019)
+
+# # Acessar resultados
+# res_dyn$total
+# res_dyn$by_destino
+# res_dyn$by_origem
+# res_dyn$cell_level
+# 
+# as.data.frame(res_dyn$by_destino) |> View()
+# as.data.frame(res_dyn$cell_level) |> View()
+
+# Visualização dos resultados ----
+## Gráfico completo ----
+as.data.frame(res_dyn$by_destino) |> 
+  pivot_longer(cols = c(actual_growth:allocation), values_to = "valor", names_to = "efeito") |> 
+  mutate(efeito = factor(efeito, 
+                         levels = c("actual_growth", "area_wide", "mix_effect", "competitive", "allocation"),
+                         labels = c("Crescimento real","Area wide", "Region-mix", "Competitive", "Allocation"))) |> 
+  ggplot(aes(x = destino, y = valor, fill = efeito)) + 
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Decomposição da evolução das chegadas internacionais \nem destinos concorrentes selecionados (2010-2019)",
+       x = "Destino",
+       y = "Chegadas (mil)",
+       fill = "Efeito") +
+  scale_x_discrete(labels = scales::label_wrap(10)) +
+  scale_y_continuous(labels = fun_formatC_inteiros)
+
+
+
+## Gráfico Brasil ----
+as.data.frame(res_dyn$by_destino) |> 
+  pivot_longer(cols = c(actual_growth:allocation), values_to = "valor", names_to = "efeito") |> 
+  filter(destino == "Brazil") |> 
+  mutate(efeito = factor(efeito, 
+                         levels = c("actual_growth", "area_wide", "mix_effect", "competitive", "allocation"),
+                         labels = c("Crescimento real","Area wide", "Region-mix", "Competitive", "Allocation"))) |> 
+  ggplot(aes(x = efeito, y = valor)) + 
+  geom_bar(stat = "identity", position = "dodge") +
+  annotate("text", x = "Crescimento real", y = -500, colour = "blue",
+           label="Crescimento real \nde 1,2 milhão de \nchegadas") +
+  annotate("text", x = "Area wide", y = -500, colour = "blue",
+           label="Crescimento esperado \nfoi maior do que \no real") +
+  annotate("text", x = "Region-mix", y = -500, colour = "blue",
+           label="Brasil com foco \nem mercados com \ncrescimento maior \ndo que a média") +
+  annotate("text", x = "Competitive", y = 500, colour = "blue",
+           label="Brasil não consegue \natrair chegadas no \nmesmo ritmo que \nconcorrentes") +
+  annotate("text", x = "Allocation", y = 1000, colour = "blue",
+           label="Brasil especializado \nem atrair chegadas \nde países em onde \nmaior competitividade") +
+  labs(title = "Decomposição da evolução das chegadas internacionais \nao Brasil (2010-2019)",
+       x = "Destino",
+       y = "Chegadas (mil)") +
+  scale_x_discrete(labels = scales::label_wrap(10)) 
+# +  scale_y_continuous(labels = fun_formatC_inteiros)
+
+as.data.frame(res_dyn$by_destino) |>
+  pivot_longer(cols = c(actual_growth:allocation),
+               values_to = "valor", names_to = "efeito") |>
+  filter(destino == "Brazil") |>
+  mutate(efeito = factor(efeito,
+                         levels = c("actual_growth", "area_wide", "mix_effect", "competitive", "allocation"),
+                         labels = c("Crescimento real","Area wide", "Region-mix", "Competitive", "Allocation")),
+         alpha_barra = if_else(efeito == "Crescimento real", 1, 0.75)) |>
+  ggplot(aes(x = efeito, y = valor)) +
+  geom_col(aes(alpha = alpha_barra), color = NA) +
+  scale_alpha_identity() +
+  labs(title = "Decomposição da evolução das chegadas internacionais \nao Brasil (2010-2019)",
+       x = "Destino",
+       y = "Chegadas (mil)") +
+  scale_x_discrete(labels = scales::label_wrap(10)) 
+# +  scale_y_continuous(labels = fun_formatC_inteiros)
+```
+
+##### Resultados
+```{r}
+#| label: fig-em-brasil-mercados
+#| fig-cap: "Decomposição da evolução das chegadas internacionais ao Brasil, por mercado emissor (2010-2019)"
+#| fig-width: 12
+
+as.data.frame(res_dyn$cell_level) |>
+  pivot_longer(cols = c(actual_growth:allocation),
+               values_to = "valor", names_to = "efeito") |>
+  filter(destino == "Brazil") |>
+  mutate(
+    efeito = factor(
+      efeito,
+      levels = c("actual_growth", "area_wide", "mix_effect", "competitive", "allocation"),
+      labels = c("Crescimento\nreal","Area wide", "Region-mix", "Competitive", "Allocation")
+    ),
+    alpha_barra = if_else(efeito == "Crescimento\nreal", 1, .6),
+    origem = factor(origem)) |>
+  ggplot(aes(x = efeito, y = valor, fill = efeito)) +
+  geom_col(aes(alpha = alpha_barra), width = 0.8) +
+  scale_alpha_identity() +
+  labs(
+    title = "Decomposição da evolução das chegadas internacionais ao Brasil, por mercado emissor (2010-2019)",
+    x = NULL,
+    y = "Chegadas (mil)",
+    fill = "Componentes: ") +
+  scale_x_discrete(labels = label_wrap(10)) +
+  facet_wrap(~origem, scales = "free_y") +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(size = 9, lineheight = 0.95),
+    plot.margin = margin(t = 5, r = 5, b = 18, l = 5)
+  ) +  
+  scale_y_continuous(labels = fun_formatC_inteiros)
+```
+
+
+```{r}
+#| label: tbl-em-brasil-mercados
+#| tbl-cap: "Decomposição da evolução das chegadas turísticas ao Brasil, por mercado (2010-2019)"
+  
+as.data.frame(res_dyn$cell_level) |> 
+  filter(destino == "Brazil") |>
+  dplyr::select(-destino) |> 
+  gt(rowname_col = "origem") |>
+  tab_stubhead(label = "Mercados") |> 
+  fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
+  tab_header(title = md("Decomposição da evolução das chegadas turísticas ao Brasil, por mercado (2010-2019)"))  |> 
+  cols_label(
+    actual_growth = "Crescimento\nreal",
+    area_wide = "Area wide",
+    mix_effect = "Region-mix",
+    competitive = "Competitive",
+    allocation = "Allocation")
+
+```
+
+**Explicação sobre os efeitos**:
+
+- ***Area-wide effect*** (efeito “tamanho do mercado”): 
+
+  - Valor positivo indica que o benchmark cresceu.
+
+  - Maior que o crescimento real: o Brasil cresceu menos que o “esperado” dado o crescimento geral do benchmark (indício de perda relativa).
+
+- ***Region-mix effect*** (efeito “composição de mercados”): 
+
+  - Cada mercado foi mais dinâmico ou menos dinâmico do que o crescimento médio do benchmark.
+
+  - Positivo: mercado “quente”.
+
+  - Negativo: mercado “frio”.
+
+- ***Competitive effect*** (efeito “desempenho relativo”):
+
+  - Mostra se o Brasil, dentro daquele mercado, cresceu mais ou menos do que o benchmark.
+
+  - Positivo: ganho de competitividade/participação relativa.
+
+  - Negativo: perda de competitividade/participação relativa.
+
+- ***Allocation effect*** (efeito “especialização × vantagem”):
+
+  - Mostra se o Brasil estava bem alocado entre mercados, no sentido de estar relativamente mais especializado nos mercados onde tem vantagem competitiva (ou menos exposto onde tem desvantagem).
+
+  - Positivo: combinação favorável (especialização onde há vantagem / não especialização onde há desvantagem).
+
+  - Negativo: combinação desfavorável (especialização onde há desvantagem / baixa presença onde haveria vantagem).
+
+**Resumo sobre cada mercado**:
+
+- ***Américas***: crescimento real menor do que o "esperado", perda de desempenho relativo, indício de problema de competitividade.
+
+- ***Europa***: mercado mais problemático: combina queda no número de visitantes + perda competitiva + alocação negativa, resultando em queda no período.
+
+- ***Outros***: havia tendência de crescimento, mas a perda competitiva domina; por isso o crescimento final é modesto.
+
+::: {.callout-warning  title = "Alerta"}
+Perda de desempenho relativo do Brasil frente aos concorrentes.
+:::
+
+
 ## Participação dos países prioritários e sensíveis às mudanças climáticas no Turismo Internacional
 
 ### Evolução da participação dos mercados selecionados no emissivo mundial
@@ -1000,17 +1427,23 @@ mercados <- c("Argentina","Chile","Paraguay","Uruguay", # Mercados consolidados
 ```{r}
 #| label: fig-emissivo-treemap-partidas
 #| fig-cap: "Participação dos principais países emissores mundiais no total de partidas do período 2010 a 2024"
-bde |> summarise(partidas = sum(partidas), .by = origem) |> 
-  mutate(pct = round(partidas / sum(partidas) * 100, 1)) |> 
-  slice_max(partidas, n = 20) |>  
+tot_mundo <- hl_long |> 
+  filter(destino == "World") |> 
+  summarise(tot = sum(chegadas)) |> 
+  pull(tot)
+
+bde |> filter(ano %in% 2010:2024) |> 
+  summarise(partidas = sum(partidas), .by = origem) |> 
+  mutate(pct = round(partidas / tot_mundo * 100, 1)) |> 
+  slice_max(partidas, n = 20) |> 
   ggplot(aes(area = pct, fill = origem, 
              label = paste0(origem, 
                             "\n",
                             formatC(round(pct, 1), format = "f", big.mark = ".", decimal.mark = ",", digits = 1),
                             "%"))) +
   geom_treemap(show.legend = FALSE) +
-  geom_treemap_text() +
-  labs(title = "Participação dos principais países emissores mundiais no total de partidas do período 2010 a 2024")
+  geom_treemap_text(reflow = TRUE) +
+  labs(title = "Participação dos principais países emissores mundiais no total de \npartidas do período 2010 a 2024")
 
 ```
 
@@ -1069,6 +1502,7 @@ bdc |> dplyr::select(pais, ano, chegadas) |> filter(ano %in% 2010:2024) |>
 ```
 
 ```{r}
+#| label: calcula participacao brasil
 #| include: false
 tot_c <- bdc |> dplyr::select(pais, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
   summarise(soma=sum(chegadas), .by = ano)
@@ -1091,7 +1525,7 @@ bdc |> filter(ano %in% 2010:2024) |>
   mutate(pais = fct_reorder(pais, if_else(ano == 2024, chegadas, NA_real_),
                                .fun = max, .na_rm = TRUE)) |> 
   ggplot(aes(x = ano, y = chegadas, fill = pais)) +
-  geom_area(size=.3, colour="grey") +
+  geom_area(linewidth=.3, colour="grey") +
   scale_x_continuous(breaks = seq(2010, 2024, 2),
                      minor_breaks = seq(2010, 2024, 1)) +
   scale_y_continuous(labels = fun_formatC_inteiros) +
@@ -1103,6 +1537,28 @@ bdc |> filter(ano %in% 2010:2024) |>
     fill = "Mercado") +
   theme(legend.position = "bottom")
 ```
+
+```{r}
+#| include: false
+#| label: visualização alternativas do receptivo brasileiro por país
+bdc |> dplyr::select(pais, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
+  mutate(pais = fct_reorder(pais, if_else(ano == 2024, chegadas, NA_real_),
+                               .fun = max, .na_rm = TRUE, .desc = FALSE)) |> 
+  ggplot(aes(x = ano, y = pais, linewidth = chegadas, color = pais, group = pais)) +
+  geom_line() +
+  scale_linewidth(range = c(0.5, 10)) +
+  theme(legend.position = "none")
+
+
+bdc |> dplyr::select(pais, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
+  mutate(chegadas = chegadas / 1000) |> 
+  mutate(pais = fct_reorder(pais, if_else(ano == 2024, chegadas, NA_real_),
+                            .fun = max, .na_rm = TRUE, .desc = FALSE)) |> 
+  streamgraph(key="pais", value="chegadas", date="ano") |> 
+  sg_axis_x("ano") |> 
+  sg_fill_tableau("tableau20") 
+```
+
 
 ```{r}
 #| label: tbl-variacao-brasil-emissores
@@ -1180,12 +1636,6 @@ bdc |> filter(ano %in% 2010:2024) |>
 ```{r}
 #| label: fig-mapa-mercados
 #| fig-cap: "Mapa ilustrativo do Brasil e mercados de interesse"
-library(sf)
-library(ggplot2)
-library(dplyr)
-library(rnaturalearth)
-library(countrycode)
-
 
 ## IDEIA: Usar os grupos da Embratur e dividir por cores no mapa
 
@@ -1319,7 +1769,6 @@ bde |> filter(origem %in% mercados, ano %in% 2010:2024) |>
 #| label: tbl-partidas-mercados
 #| tbl-cap: "Partidas turísticas internacionais, por país e ano (mil)"
 
-library(gt)
 bde |> filter(origem %in% mercados, ano %in% 2010:2024) |> 
   dplyr::select(origem, ano, partidas) |> filter(ano %in% 2010:2024) |> 
   pivot_wider(id_cols = origem, values_from = partidas, names_from = ano, names_sort = TRUE) |> 
@@ -1400,7 +1849,7 @@ bde |> filter(origem %in% mercados, ano %in% 2010:2024) |>
 
 ```{r}
 #| label: Importa dados de market-share do Brasil
-library(readxl)
+
 bdms <- read_excel("data/participacao_brasil_mercados.xlsx")
 bdms <- janitor::clean_names(bdms)
 bdms <- bdms |> rename(
