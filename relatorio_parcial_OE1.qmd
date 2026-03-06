@@ -505,23 +505,26 @@ ggplot(df_rank, aes(x = ano, y = rank, group = destino, color = destino, shape =
 #| label: tbl-chegadas-concorrentes
 #| tbl-cap: "Chegadas turísticas internacionais, por país e ano (mil)"
 
+cols_color <- c(as.character(2010:2019), as.character(2023:2024))
 
-bd |> dplyr::select(destino, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
+tab_gt <- bd |> dplyr::select(destino, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
   pivot_wider(id_cols = destino, values_from = chegadas, names_from = ano, names_sort = TRUE) |> 
   rowwise() |> mutate(Média = mean(c_across(`2010`:`2024`), na.rm = TRUE)) |>  ungroup() |> 
   arrange(desc(Média)) |> 
   gt(rowname_col = "destino") |>
   tab_stubhead(label = "Concorrentes") |> 
   data_color(
-    columns = `2010`:`2024`, 
-    target_columns = `2010`:`2024`, 
+    columns = cols_color, 
+    direction = "row",
     method = "numeric",
     palette = "Blues") |> 
   fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
-  tab_header(title = "Chegadas turísticas internacionais, por país e ano (mil)") |> 
   tab_style(
     style = cell_text(weight = "bold"),
     locations = cells_body(columns = Média))
+tab_gt
+gtsave(tab_gt, "output/tbl-chegadas-concorrentes.docx")
+
 ```
 
 ```{r}
@@ -619,22 +622,25 @@ bd |> filter(ano %in% 2010:2024) |>
 #| label: tbl-participacao-concorrentes
 #| tbl-cap: "Participação nas chegadas internacionais, por país e ano (%)"
 
-bd |> dplyr::select(destino, ano, pct) |> filter(ano %in% 2010:2024) |> 
+cols_color <- c(as.character(2010:2019), as.character(2023:2024))
+
+tab_gt <- bd |> dplyr::select(destino, ano, pct) |> filter(ano %in% 2010:2024) |> 
   pivot_wider(id_cols = destino, values_from = pct, names_from = ano, names_sort = TRUE) |> 
   rowwise() |> mutate(Média = mean(c_across(`2010`:`2024`), na.rm = TRUE)) |>  ungroup() |> 
   arrange(desc(Média)) |> 
   gt(rowname_col = "destino") |>
   tab_stubhead(label = "Concorrentes") |> 
   data_color(
-    columns = `2010`:`2024`, 
-    target_columns = `2010`:`2024`, 
+    columns = cols_color, 
+    direction = "row", 
     method = "numeric",
     palette = "Blues") |> 
   fmt_number(decimals = 2, sep_mark = ".", dec_mark = ",") |> 
-  tab_header(title = "Participação nas chegadas internacionais, por país e ano (%)") |> 
   tab_style(
     style = cell_text(weight = "bold"),
     locations = cells_body(columns = Média))
+tab_gt
+gtsave(tab_gt, "output/tbl-participacao-concorrentes.docx")
 ```
 
 ```{r}
@@ -765,14 +771,6 @@ pib <- data.frame(ano = 2010:2024, g_world_gdp = world_gdp)
 
 ```{r}
 #| label: Função do Shift-share estático
-
-
-# variavel <- "chegadas"
-# ano_inicio <- 2010
-# ano_fim <- 2024
-# paises_concorrentes <- concorrentes
-# df_pib <- pib
-
 
 calcular_shift_share <- function(bd, df_pib, paises_concorrentes, variavel = "chegadas", ano_inicio, ano_fim) {
   
@@ -917,73 +915,165 @@ dssa <- calcular_shift_share(
 )
 ```
 
-#### Brasil
+#### SSA-Dogru-2021 - Brasil
 
 ```{r}
-#| label: SSA Brasil
+#| label: tbl-ssa-brasil
+#| tbl-cap: "Decomposição da evolução das chegadas turísticas ao Brasil (2010-2024)"
+
+tab_gt <- as.data.frame(dssa$serie_brasil) |>
+  gt() |>
+   tab_spanner(
+    label = "Crescimento (%)",
+    columns = c(g_world_gdp:g_brazil_turismo)) |>
+  tab_spanner(
+    label = "Composição vs mundo (mil chegadas)",
+    columns = c(GGE:GCSE_Mundo)) |> 
+  tab_spanner(
+    label = "Composição vs benchmark  (mil chegadas)",
+    columns = c(GIME_Grupo:GCSE_Grupo)) |> 
+  fmt_integer(columns = ano, sep_mark = "") |> 
+  fmt_number(columns = c(share_global_pct:g_brazil_turismo), decimals = 2, sep_mark = ".", dec_mark = ",") |> 
+  fmt_number(columns = var_share_pp, decimals = 2, sep_mark = ".", dec_mark = ",") |> 
+  fmt_number(columns = c(g_world_gdp:g_brazil_turismo), scale_by = 100, decimals = 1, sep_mark = ".", dec_mark = ",") |>
+  fmt_integer(columns = c(brazil_volume, GGE:GCSE_Grupo), sep_mark = ".") |> 
+  cols_label(ano = "Ano",
+    brazil_volume = "Chegadas (mil)",
+    share_global_pct = "Participação global (%)",
+    var_share_pp = "Variação na participação (p.p.)",
+    g_world_gdp = "Economia mundial",
+    g_mundo_turismo = "Chegadas turísticas no mundo",
+    g_grupo_turismo = "Chegadas turísticas no benchmark",
+    g_brazil_turismo = "Chegadas turísticas no Brasil",
+    GGE = "Crescimento econômico",
+    GIME_Mundo = "Crescimento do turismo",
+    GCSE_Mundo = "Competitivo",
+    GIME_Grupo = "Crescimento do turismo",
+    GCSE_Grupo = "Competitivo") |> 
+  tab_source_note("Nota: Baseado em Dogru et al. (2021)")  |> 
+  tab_style(style = cell_text(align = "left"), locations = cells_source_notes()) |> 
+  tab_options(footnotes.multiline = TRUE)
+tab_gt
+gtsave(tab_gt, "output/tbl-ssa-brasil.docx")
+```
 
 
-# 1. Ver a tabela de tempo original (Só Brasil)
-knitr::kable(dssa$serie_brasil, caption = "Resultados SSA Brasil")
+```{r}
+#| label: fig-ssa-brasil-mundo
+#| fig-cap: "Decomposição da evolução das chegadas turísticas ao Brasil (2010-2024)"
+#| fig-subcap: "Comparado com mundo"
 
-# Gráfico efeitos Brasil x Mundo
 dssa$serie_brasil |>
   select(ano, GGE, GIME_Mundo, GCSE_Mundo) |>
-  pivot_longer(cols = -ano, names_to = "Efeito", values_to = "Valor") |>
-  mutate(Efeito = factor(Efeito, levels = c("GGE", "GIME_Mundo", "GCSE_Mundo"))) |>
-  ggplot(aes(x = ano, y = Valor, fill = Efeito)) +
-  geom_col() +
-  labs(title = "Decomposição Shift-Share: Brasil vs Mundo",
-       y = "Variação de chegadas (nº)",
-       x = "Ano") +
-  scale_x_continuous(breaks = seq(2010, 2024, 1)) +
-  scale_y_continuous(breaks = seq(-5000, 5000, 1000))
-
-# Gráfico efeitos Brasil x Concorrentes
-dssa$serie_brasil |>
-  select(ano, GGE, GIME_Grupo, GCSE_Grupo) |>
-  pivot_longer(cols = -ano, names_to = "Efeito", values_to = "Valor") |>
-  mutate(Efeito = factor(Efeito, levels = c("GGE", "GIME_Grupo", "GCSE_Grupo"))) |>
-  ggplot(aes(x = ano, y = Valor, fill = Efeito)) +
-  geom_col() +
-  labs(title = "Decomposição Shift-Share: Brasil vs Concorrentes",
+  pivot_longer(cols = -ano, names_to = "Composição", values_to = "Valor") |>
+  mutate(Composição = factor(Composição, levels = c("GGE", "GIME_Mundo", "GCSE_Mundo"))) |>
+  ggplot(aes(x = ano, y = Valor, fill = Composição)) +
+  geom_col(position = "dodge") +
+  labs(title = "Decomposição da evolução das chegadas turísticas ao Brasil (2010-2024)",
+       subtitle = "Comparado com mundo",
        y = "Variação de chegadas (nº)",
        x = "Ano") +
   scale_x_continuous(breaks = seq(2010, 2024, 1)) +
   scale_y_continuous(breaks = seq(-5000, 5000, 1000))
 ```
 
-#### Brasil x Concorrentes
 
 ```{r}
-#| label: SSA Brasil x concorrentes
+#| label: fig-ssa-brasil-benchmark
+#| fig-cap: "Decomposição da evolução das chegadas turísticas ao Brasil (2010-2024)"
+#| fig-subcap: "Comparado com benchmark"
 
+dssa$serie_brasil |>
+  select(ano, GGE, GIME_Grupo, GCSE_Grupo) |>
+  pivot_longer(cols = -ano, names_to = "Composição", values_to = "Valor") |>
+  mutate(Composição = factor(Composição, levels = c("GGE", "GIME_Grupo", "GCSE_Grupo"))) |>
+  ggplot(aes(x = ano, y = Valor, fill = Composição)) +
+  geom_col(position = "dodge") +
+  labs(title = "Decomposição da evolução das chegadas turísticas ao Brasil (2010-2024)",
+       subtitle = "Comparado com benchmark",
+       y = "Variação de chegadas (nº)",
+       x = "Ano") +
+  scale_x_continuous(breaks = seq(2010, 2024, 1)) +
+  scale_y_continuous(breaks = seq(-5000, 5000, 1000))
+```
 
-# 2. Ver o resumo comparativo (Brasil, Países Individuais e Grupo Concorrente)
-dssa$resumo_geral |> arrange(desc(Total_GCSE_Mundo)) |> knitr::kable(caption = "Resumo Geral")
+#### SSA-Dogru-2021 - Brasil x Concorrentes
 
+```{r}
+#| label: tbl-ssadogru-brasil-concorrentes
+#| tbl-cap: "Decomposição da evolução das chegadas turísticas ao Brasil e concorrentes (2010-2024)"
+#| warning: false
+
+# Resumo comparativo (Brasil, Países Individuais e Grupo Concorrente)
+
+tab_gt <- dssa$resumo_geral |>
+  filter(destino != "Concorrentes") |> 
+  gt(rowname_col = "destino") |> 
+  tab_stubhead(label = "Destino") |>
+  tab_style(
+    style = list(
+      cell_text(weight = "bold"),
+      cell_fill(color = "gray95")
+    ),
+    locations = list(
+      cells_stub(rows = destino == "Brazil"),
+      cells_body(rows = destino == "Brazil")
+    )
+  ) |> 
+  tab_spanner(
+    label = "Chegadas (mil)",
+    columns = c(Volume_Inicial:Variação_Total)) |>
+  tab_spanner(
+    label = "Participação",
+    columns = c(Share_Global_Inicial:Variação_Share_PP)) |> 
+  tab_spanner(
+    label = "Composição vs mundo (mil chegadas)",
+    columns = c(Total_GGE:Total_GCSE_Mundo)) |> 
+  tab_spanner(
+    label = "Composição vs benchmark  (mil chegadas)",
+    columns = c(Total_GIME_Grupo:Total_GCSE_Grupo)) |> 
+  fmt_integer(columns = c(Volume_Inicial:Variação_Total, Total_GGE:Total_GCSE_Grupo), 
+              sep_mark = ".") |> 
+  fmt_percent(columns = c(Share_Global_Inicial:Share_Global_Final),
+              dec_mark = ",", decimals = 2, scale_values = FALSE) |> 
+  fmt_number(columns = Variação_Share_PP, decimals = 2, dec_mark = ",") |> 
+  cols_label(
+    destino = "Destino",
+    Volume_Inicial = "Inicial",
+    Volume_Final = "Final",
+    Variação_Total = "Variação",
+    Share_Global_Inicial = "Inicial",
+    Share_Global_Final	 = "Final",
+    Variação_Share_PP = "Variação (p.p.)",
+    Total_GGE = "Crescimento econômico",
+    Total_GIME_Mundo = "Crescimento do turismo",
+    Total_GCSE_Mundo = "Competitivo",
+    Total_GIME_Grupo = "Crescimento do turismo",
+    Total_GCSE_Grupo = "Competitivo") |> 
+  tab_source_note("Nota: Baseado em Dogru et al. (2021)") |> 
+  tab_style(style = cell_text(align = "left"), locations = cells_source_notes()) |> 
+  tab_options(footnotes.multiline = TRUE)
+tab_gt
+gtsave(tab_gt, "output/tbl-ssadogru-brasil-concorrentes.docx")
 
 ```
 
-#### Shift-share com extensão de Esteban-Marquillas
+#### SSA-EM
 
 - Análise aplicada em turismo para conjunto de origens e destinos (5 artigos).
 
 - Impossibilidade de montar uma extensa matriz origem-destino.
 
-- Temos uma matriz de sete países e 3 mercados, de 2010 a 2019.
+- Temos uma matriz de sete países e três mercados, de 2010 a 2019.
 
   - **Concorrentes**: Brasil, Argentina, Colômbia, Cuba, República Dominicana, Jamaica, Peru
   
-    - Espanha destoa muito.
+    - Há dados para a Espanha, mas retirei pois destoa muito do resto do grupo.
     
     - Não há dados para Chile, Costa Rica e México.
     
   - **Mercados**: Américas, Europa, Outros.
     
-    
-  
-
 
 
 ```{r}
@@ -1010,21 +1100,29 @@ bd <- bd |> filter(tipo_area == "regiao", str_detect(origem, "UNWTO"), destino %
 ##### Descrição do grupo de comparação
 ```{r}
 #| label: fig-em-desc-benchmark
-#| fig-cap: "Total de chegadas turísticas internacionais, por ano (2010-2019)"
+#| fig-cap: "Total de chegadas turísticas internacionais dos países do grupo de comparação, por ano (2010-2019)"
 
 # Gráfico da composição deste grupo
 bd |> 
   filter(destino %in% concorrentes, ano %in% 2010:2019) |>
   summarise(chegadas = sum(chegadas), .by = c(destino, ano)) |> 
+  mutate(destino = fct_reorder(destino, if_else(ano == 2019, chegadas, NA_real_),
+                               .fun = max, .na_rm = TRUE)) |> 
   ggplot(aes(x = ano, y = chegadas, fill = destino)) +
   geom_area() +
   labs(
-    title = "Total de chegadas turísticas internacionais, por ano (2010-2019)",
-    subtitle = "Grupo de comparação com 7 países",
     y = "Chegadas (mil)",
-    x = "Ano") + 
+    x = "Ano",
+    fill = "Destino") + 
+  geom_text(
+    data = \(x) filter(x, ano %in% c(2010, 2019)),
+    aes(label = fun_formatC_inteiros(chegadas)),
+    position = position_stack(vjust = 0.5),
+    size = 3
+  ) +
   scale_x_continuous(breaks = seq(2010, 2019, 1)) + 
-  scale_y_continuous(labels = fun_formatC_inteiros)
+  scale_y_continuous(labels = fun_formatC_inteiros,
+                     breaks = seq(0, 35000, 5000))
 ```
 
 
@@ -1043,10 +1141,51 @@ bd |>
                             formatC(round(chegadas, 1), format = "f", big.mark = ".", decimal.mark = ",", digits = 1),
                             "%"))) +
   geom_treemap(show.legend = FALSE) +
-  geom_treemap_text() +
-  labs(title = "Participação de cada país no total das chegadas do grupo de comparação (2019)")
+  geom_treemap_text()
 ```
+```{r}
+#| label: fig-em-desc-mercados
+#| fig-cap: "Total de chegadas turísticas internacionais, por ano (2010-2019)"
 
+# Gráfico da composição dos mercados
+bd |> 
+  filter(ano %in% 2010:2019) |>
+  summarise(chegadas = sum(chegadas), .by = c(origem, ano)) |> 
+    mutate(origem = fct_reorder(origem, if_else(ano == 2019, chegadas, NA_real_),
+                               .fun = max, .na_rm = TRUE)) |> 
+  ggplot(aes(x = ano, y = chegadas, fill = origem)) +
+  geom_area() +
+    geom_text(
+    data = \(x) filter(x, ano %in% c(2010, 2019)),
+    aes(label = fun_formatC_inteiros(chegadas)),
+    position = position_stack(vjust = 0.5),
+    size = 3
+  ) +
+  labs(
+    y = "Chegadas (mil)",
+    x = "Ano",
+    fill = "Mercado") + 
+  scale_x_continuous(breaks = seq(2010, 2019, 1)) + 
+  scale_y_continuous(labels = fun_formatC_inteiros,
+                     breaks = seq(0, 35000, 5000))
+```
+```{r}
+#| label: fig-em-desc-mercados-2019
+#| fig-cap: "Participação dos mercados analisados no total de chegadas turísticas internacionais (2019)"
+
+bd |> 
+  filter(ano == 2019) |>
+  summarise(chegadas = sum(chegadas), .by = origem) |> 
+  mutate(chegadas = round(chegadas / sum(chegadas) * 100, 1)) |> 
+  slice_max(chegadas, n = 20) |>  
+  ggplot(aes(area = chegadas, fill = origem, 
+             label = paste0(origem, 
+                            "\n",
+                            formatC(round(chegadas, 1), format = "f", big.mark = ".", decimal.mark = ",", digits = 1),
+                            "%"))) +
+  geom_treemap(show.legend = FALSE) +
+  geom_treemap_text()
+```
 
 ```{r}
 #| label: Funções e execução SSA-EM
@@ -1240,7 +1379,7 @@ as.data.frame(res_dyn$by_destino) |>
   labs(title = "Decomposição da evolução das chegadas internacionais \nem destinos concorrentes selecionados (2010-2019)",
        x = "Destino",
        y = "Chegadas (mil)",
-       fill = "Efeito") +
+       fill = "Composição") +
   scale_x_discrete(labels = scales::label_wrap(10)) +
   scale_y_continuous(labels = fun_formatC_inteiros)
 
@@ -1295,7 +1434,7 @@ as.data.frame(res_dyn$by_destino) |>
 #| fig-cap: "Decomposição da evolução das chegadas internacionais ao Brasil, por mercado emissor (2010-2019)"
 #| fig-width: 12
 
-as.data.frame(res_dyn$cell_level) |>
+res_dyn$cell_level |>
   pivot_longer(cols = c(actual_growth:allocation),
                values_to = "valor", names_to = "efeito") |>
   filter(destino == "Brazil") |>
@@ -1303,15 +1442,16 @@ as.data.frame(res_dyn$cell_level) |>
     efeito = factor(
       efeito,
       levels = c("actual_growth", "area_wide", "mix_effect", "competitive", "allocation"),
-      labels = c("Crescimento\nreal","Area wide", "Region-mix", "Competitive", "Allocation")
-    ),
+      labels = c("Crescimento\nreal","Area wide", "Region-mix", "Competitive", "Allocation")),
     alpha_barra = if_else(efeito == "Crescimento\nreal", 1, .6),
     origem = factor(origem)) |>
   ggplot(aes(x = efeito, y = valor, fill = efeito)) +
   geom_col(aes(alpha = alpha_barra), width = 0.8) +
   scale_alpha_identity() +
+  geom_text(aes(label = formatC(round(valor, 1), format = "f", big.mark = ".", decimal.mark = ",", digits = 1)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.3, size = 3) + 
   labs(
-    title = "Decomposição da evolução das chegadas internacionais ao Brasil, por mercado emissor (2010-2019)",
     x = NULL,
     y = "Chegadas (mil)",
     fill = "Componentes: ") +
@@ -1330,21 +1470,63 @@ as.data.frame(res_dyn$cell_level) |>
 #| label: tbl-em-brasil-mercados
 #| tbl-cap: "Decomposição da evolução das chegadas turísticas ao Brasil, por mercado (2010-2019)"
   
-as.data.frame(res_dyn$cell_level) |> 
+tab_gt <- res_dyn$cell_level |> 
   filter(destino == "Brazil") |>
   dplyr::select(-destino) |> 
   gt(rowname_col = "origem") |>
   tab_stubhead(label = "Mercados") |> 
+  tab_spanner(
+    label = "Decomposição",
+    columns = area_wide:allocation) |>
   fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
-  tab_header(title = md("Decomposição da evolução das chegadas turísticas ao Brasil, por mercado (2010-2019)"))  |> 
   cols_label(
     actual_growth = "Crescimento\nreal",
     area_wide = "Area wide",
     mix_effect = "Region-mix",
     competitive = "Competitive",
-    allocation = "Allocation")
+    allocation = "Allocation") |> 
+  tab_source_note("Nota: Baseado em Alavi & Yasin (2000), Ribeiro & Andrade (2015), Sobral et al. (2007), Toh et al. (2004), Yasin et al. (2004)") |> 
+  tab_style(style = cell_text(align = "left"), locations = cells_source_notes()) |> 
+  tab_options(footnotes.multiline = TRUE)
+tab_gt
+gtsave(tab_gt, "output/tbl-em-brasil-mercados.docx")
 
 ```
+
+
+```{r}
+#| label: tbl-em-concorrentes-mercados
+#| tbl-cap: "Decomposição da evolução das chegadas turísticas aos concorrentes analisados, por mercado (2010-2019)"
+  
+tab_gt <- res_dyn$cell_level |> 
+  mutate(destino = factor(destino, 
+                          levels = c("Brazil", "Argentina", "Colombia", "Cuba", "Dominican Republic", "Jamaica", "Peru"))) |> 
+  arrange(destino) |> 
+  dplyr::group_by(destino) |> 
+  gt(rowname_col = "origem") |>
+  tab_stubhead(label = "Mercados") |> 
+  tab_spanner(
+    label = "Decomposição",
+    columns = area_wide:allocation) |>
+  fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
+  cols_label(
+    actual_growth = "Crescimento\nreal",
+    area_wide = "Area wide",
+    mix_effect = "Region-mix",
+    competitive = "Competitive",
+    allocation = "Allocation") |> 
+  tab_source_note("Nota: Baseado em Alavi & Yasin (2000), Ribeiro & Andrade (2015), Sobral et al. (2007), Toh et al. (2004), Yasin et al. (2004)") |> 
+  tab_style(style = cell_text(align = "left"), locations = cells_source_notes()) |> 
+  tab_options(footnotes.multiline = TRUE) |> 
+   tab_style(
+    style = list(
+      cell_fill(color = "gray95")),
+    locations = cells_row_groups())
+tab_gt
+gtsave(tab_gt, "output/tbl-em-concorrentes-mercados.docx")
+```
+
+
 
 **Explicação sobre os efeitos**:
 
@@ -1474,12 +1656,14 @@ bdc <- bdc |> filter(pais %in% principais) |>
 
 - Há dois países asiáticos entre os principais emissores para o Brasil: Japão e China.
 
+<!-- IDEIA: inserir treemap ou colunas de um ano -->
+
 ```{r}
 #| label: tbl-chegadas-brasil-paises
 #| tbl-cap: "Chegadas turísticas internacionais ao Brasil, por país e ano (mil)"
 #| tbl-subtitle: "20 principais emissores para o Brasil"
 
-bdc |> dplyr::select(pais, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
+tab_gt <- bdc |> dplyr::select(pais, ano, chegadas) |> filter(ano %in% 2010:2024) |> 
   pivot_wider(id_cols = pais, values_from = chegadas, names_from = ano, names_sort = TRUE) |> 
   rowwise() |> mutate(Média = mean(c_across(`2010`:`2024`), na.rm = TRUE)) |>  ungroup() |> 
   arrange(desc(Média)) |> 
@@ -1491,15 +1675,15 @@ bdc |> dplyr::select(pais, ano, chegadas) |> filter(ano %in% 2010:2024) |>
     method = "numeric",
     palette = "Blues") |> 
   fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
-  tab_header(title = "Chegadas turísticas internacionais ao Brasil, por país e ano (mil)",
-             subtitle = "20 principais emissores para o Brasil") |> 
   tab_style(
     style = cell_text(weight = "bold"),
     locations = cells_body(columns = Média))
-
+tab_gt
+gtsave(tab_gt, "output/tbl-chegadas-brasil-paises.docx")
 
 
 ```
+
 
 ```{r}
 #| label: calcula participacao brasil
@@ -1588,9 +1772,7 @@ bdc_temp |>
     method = "numeric",
     palette = c("red", "white", "green"),
     domain = c(-var_max, var_max)) |> 
-  fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
-  tab_header(title = "Variação anual das chegadas turísticas internacionais ao Brasil, por país e ano (mil)",
-             subtitle = "20 principais emissores para o Brasil")
+  fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",")
 
 ```
 - Os dados dos principais emissores a respeito do volume de chegadas e da taxa anual de crescimento das chegadas ao Brasil mostram uma tendência de queda da fluxo de alguns países europeus. 
@@ -1782,7 +1964,6 @@ bde |> filter(origem %in% mercados, ano %in% 2010:2024) |>
     method = "numeric",
     palette = "Blues") |> 
   fmt_number(decimals = 0, sep_mark = ".", dec_mark = ",") |> 
-  tab_header(title = "Partidas turísticas internacionais, por país e ano (mil)") |> 
   tab_style(
     style = cell_text(weight = "bold"),
     locations = cells_body(columns = Média))
@@ -1878,7 +2059,6 @@ bdms |> dplyr::select(ano, origem, pct_br) |> filter(ano %in% 2010:2024) |>
     method = "numeric",
     palette = "Blues") |> 
   fmt_number(decimals = 2, sep_mark = ".", dec_mark = ",") |> 
-  tab_header(title = "Participação do Brasil nos mercados selecionados, por país e ano (%)") |> 
   tab_style(
     style = cell_text(weight = "bold"),
     locations = cells_body(columns = Média))
@@ -1953,9 +2133,6 @@ bdms_temp |>
     method = "numeric",
     palette = c("red", "white", "green"),
     domain = c(-var_max, var_max)) |> 
-  fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
-  tab_header(title = "Variação anual da participação do Brasil nos mercados selecionados, por país e ano (%)",
-             subtitle = "20 principais emissores para o Brasil")
-
+  fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",")
 
 ```
