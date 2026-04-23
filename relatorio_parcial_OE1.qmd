@@ -364,7 +364,7 @@ hl_long |> filter(destino %in% c("Brazil", "World"), ano %in% c(2009:2024)) |>
 
 ```{r}
 #| label: fig-mapa-concorrentes
-#| fig-cap: "Mapa ilustrativo do Brasil e principais concorrentes"
+#| fig-cap: "Mapa ilustrativo do Brasil e concorrentes selecionados"
 
 paises_destacados <- c(
   "Brazil","Peru","Dominican Republic","Colombia","Spain","Chile",
@@ -416,8 +416,7 @@ ggplot(mundo) +
     axis.text = element_blank(),
     axis.ticks = element_blank(),
     legend.position = "none"
-  ) +
-  labs(title = "Mapa ilustrativo do Brasil e principais concorrentes")
+  )
 
 ```
 
@@ -1208,8 +1207,7 @@ shift_share_static_em <- function(bd, year0 = 2009, year1 = 2019) {
     group_by(ano, origem, destino) %>%
     summarise(chegadas = sum(chegadas, na.rm = TRUE), .groups = "drop")
   
-  # --- completa combinações faltantes como 0 (opcional, mas ajuda na consistência)
-  # Se você não quiser completar com zeros, me diga.
+  # completa combinações faltantes como 0 
   df <- df %>%
     tidyr::complete(
       ano = c(year0, year1),
@@ -1344,6 +1342,7 @@ shift_share_dynamic_em <- function(bd, years = 2010:2019) {
   
   list(
     years = years,
+    pieces = pieces, # acréscimo após a entrega do relatório parcial, para ter os dados ano a ano
     cell_level = summed_cell,
     by_destino = summed_cell %>%
       group_by(destino) %>%
@@ -1364,9 +1363,51 @@ res_dyn <- shift_share_dynamic_em(bd, years = 2010:2019)
 # res_dyn$by_destino
 # res_dyn$by_origem
 # res_dyn$cell_level
+# res_dyn$pieces
 # 
 # as.data.frame(res_dyn$by_destino) |> View()
 # as.data.frame(res_dyn$cell_level) |> View()
+
+write.table(res_dyn$total, paste0("output/res_dyn_total",".csv"), 
+            quote = FALSE,
+            sep = ";",
+            na = "",
+            fileEncoding = "ISO-8859-1",
+            dec = ",",
+            row.names = FALSE)
+            
+write.table(res_dyn$by_destino, paste0("output/res_dyn_by_destino",".csv"), 
+            quote = FALSE,
+            sep = ";",
+            na = "",
+            fileEncoding = "ISO-8859-1",
+            dec = ",",
+            row.names = FALSE)
+
+write.table(res_dyn$by_origem, paste0("output/res_dyn_by_origem",".csv"), 
+            quote = FALSE,
+            sep = ";",
+            na = "",
+            fileEncoding = "ISO-8859-1",
+            dec = ",",
+            row.names = FALSE)
+
+write.table(res_dyn$cell_level, paste0("output/res_dyn_cell_level",".csv"), 
+            quote = FALSE,
+            sep = ";",
+            na = "",
+            fileEncoding = "ISO-8859-1",
+            dec = ",",
+            row.names = FALSE)
+
+write.table(res_dyn$pieces, paste0("output/res_dyn_pieces",".csv"), 
+            quote = FALSE,
+            sep = ";",
+            na = "",
+            fileEncoding = "ISO-8859-1",
+            dec = ",",
+            row.names = FALSE)
+
 
 # Visualização dos resultados ----
 ## Gráfico completo ----
@@ -1384,9 +1425,7 @@ as.data.frame(res_dyn$by_destino) |>
   scale_x_discrete(labels = scales::label_wrap(10)) +
   scale_y_continuous(labels = fun_formatC_inteiros)
 
-
-
-## Gráfico Brasil ----
+## Gráfico total de cada país ----
 as.data.frame(res_dyn$by_destino) |> 
   pivot_longer(cols = c(actual_growth:allocation), values_to = "valor", names_to = "efeito") |> 
   filter(destino == "Brazil") |> 
@@ -1409,6 +1448,37 @@ as.data.frame(res_dyn$by_destino) |>
        x = "Destino",
        y = "Chegadas (mil)") +
   scale_x_discrete(labels = scales::label_wrap(10)) 
+# +  scale_y_continuous(labels = fun_formatC_inteiros)
+
+as.data.frame(res_dyn$by_destino) |>
+  pivot_longer(cols = c(actual_growth:allocation),
+               values_to = "valor", names_to = "efeito") |>
+  filter(destino == "Brazil") |>
+  mutate(efeito = factor(efeito,
+                         levels = c("actual_growth", "area_wide", "mix_effect", "competitive", "allocation"),
+                         labels = c("Crescimento real","Area wide", "Region-mix", "Competitive", "Allocation")),
+         alpha_barra = if_else(efeito == "Crescimento real", 1, 0.75)) |>
+  ggplot(aes(x = efeito, y = valor)) +
+  geom_col(aes(alpha = alpha_barra), color = NA) +
+  scale_alpha_identity() +
+  labs(title = "Decomposição da evolução das chegadas internacionais \nao Brasil (2010-2019)",
+       x = "Destino",
+       y = "Chegadas (mil)") +
+  scale_x_discrete(labels = scales::label_wrap(10)) 
+
+## Gráfico Brasil ----
+as.data.frame(res_dyn$by_destino) |> 
+  pivot_longer(cols = c(actual_growth:allocation), values_to = "valor", names_to = "efeito") |> 
+  mutate(efeito = factor(efeito, 
+                         levels = c("actual_growth", "area_wide", "mix_effect", "competitive", "allocation"),
+                         labels = c("Crescimento real","Area wide", "Region-mix", "Competitive", "Allocation"))) |> 
+  ggplot(aes(x = efeito, y = valor)) + 
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Decomposição da evolução das chegadas internacionais \nao Brasil (2010-2019)",
+       x = "Destino",
+       y = "Chegadas (mil)") +
+  scale_x_discrete(labels = scales::label_wrap(10)) +
+  facet_wrap(~destino)
 # +  scale_y_continuous(labels = fun_formatC_inteiros)
 
 as.data.frame(res_dyn$by_destino) |>
@@ -1458,7 +1528,7 @@ geom_text(data = \(x) filter(x, ano == 2019),
 ```
 
 ```{r}
-#| label: fig-em-desc-emissor-por-destino-facet-absoluto
+#| label: fig-em-desc-emissor-por-destino-facet-absoluto2
 #| fig-cap: Participação dos mercados por destino, por ano (2010-2019)
 #| fig-height: 12
 #| fig-width: 10
@@ -1584,7 +1654,69 @@ gtsave(tab_gt, "output/tbl-em-concorrentes-mercados.docx")
 ```
 
 
+```{r}
+#| label: fig-em-brasil-ano-ano
+#| fig-cap: "Efeito líquido das chegadas internacionais ao Brasil, por mercado emissor (2011-2019)"
+#| 
+res_dyn$pieces |> filter(destino == "Brazil", year1 >= 2011) |> mutate(net_shift = actual_growth - area_wide) |> 
+  ggplot(aes(x = year1, y = net_shift, colour = origem)) +
+  geom_line(linewidth = 1) +
+  scale_x_continuous(breaks = seq(2011, 2019, 1), minor_breaks = NULL) +
+  labs(
+    y = "Efeito líquido (mil chegadas)",
+    colour = "Mercado",
+    x = "Ano"
+  )
 
+res_dyn$pieces |> filter(destino == "Brazil", year1 >= 2011) |> dplyr::select(year1, origem, area_wide:allocation) |>
+  pivot_longer(cols = area_wide:allocation, names_to = "Componentes", values_to = "Valores") |>
+  ggplot(aes(x = year1, y = Valores, colour = origem)) +
+  geom_line(linewidth = 1) +
+  scale_x_continuous(breaks = seq(2011, 2019, 1), minor_breaks = NULL) +
+  labs(
+    y = "Efeito líquido (mil chegadas)",
+    colour = "Mercado",
+    x = "Ano") +
+  facet_wrap(~Componentes, scales = "free_y")
+
+res_dyn$pieces |> filter(destino == "Brazil", year1 >= 2011) |> dplyr::select(year1, origem, area_wide:allocation) |>
+  pivot_longer(cols = area_wide:allocation, names_to = "Componentes", values_to = "Valores") |>
+  ggplot(aes(x = year1, y = Valores, colour = Componentes)) +
+  geom_line(linewidth = 1) +
+  scale_x_continuous(breaks = seq(2011, 2019, 1), minor_breaks = NULL) +
+  labs(
+    y = "Efeito líquido (mil chegadas)",
+    colour = "Componente",
+    x = "Ano") +
+  facet_wrap(~origem, scales = "free_y")
+
+```
+```{r}
+#| label: tbl-em-total-destinos
+#| tbl-cap: "Decomposição da evolução das chegadas turísticas aos concorrentes analisados (2010-2019)"
+  
+tab_gt <- res_dyn$by_destino |> 
+  mutate(destino = factor(destino, 
+                          levels = c("Brazil", "Argentina", "Colombia", "Cuba", "Dominican Republic", "Jamaica", "Peru"))) |> 
+  arrange(destino) |> 
+  gt(rowname_col = "destino") |>
+  tab_spanner(
+    label = "Decomposição",
+    columns = area_wide:allocation) |>
+  fmt_number(decimals = 1, sep_mark = ".", dec_mark = ",") |> 
+  cols_label(
+    actual_growth = "Crescimento\nreal",
+    area_wide = "Area wide",
+    mix_effect = "Region-mix",
+    competitive = "Competitive",
+    allocation = "Allocation") |> 
+   tab_style(
+    style = list(
+      cell_fill(color = "gray95")),
+    locations = cells_row_groups())
+tab_gt
+gtsave(tab_gt, "output/tbl-em-total-destinos.docx")
+```
 
 **Explicação sobre os efeitos**:
 
@@ -2315,7 +2447,25 @@ gtsave(tab_gt, "output/tbl-participacao-brasil-mercados.docx")
 ```
 
 ```{r}
-# Clusterização por aloja
+#| label: tbl-ssaem-ano-ano
+#| tbl-cap: "Resultados anuais"
+
+tab_gt <- res_dyn$pieces |>
+  gt() 
+tab_gt
+gtsave(tab_gt, "output/tbl-ssaem-ano-ano.docx")
+write.table(res_dyn$pieces, paste0("output/tbl-ssaem-ano-ano",".csv"), 
+            quote = FALSE,
+            sep = ";",
+            na = "",
+            fileEncoding = "ISO-8859-1",
+            dec = ",",
+            row.names = FALSE)
+            
+```
+
+```{r}
+# Clusterização
 # 1. Seleciona as variáveis
 dados <- bra |> mutate(pct_br_mercado = pct_br_mercado / 100) |> na.omit()
 
