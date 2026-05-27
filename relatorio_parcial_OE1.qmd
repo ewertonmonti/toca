@@ -285,6 +285,70 @@ bd |> filter(destino == "Brazil", ano %in% c(2010:2024)) |>
 -   Após a pandemia, há alguma dificuldade para retomar o patamar anterior.
 
 ```{r}
+#| label: fig-chegadas-pct-brasil-anptur2026
+#| fig-cap: "Volume de chegadas turísticas internacionais ao Brasil e participação no total global, por ano (2010-2019)"
+
+
+# Gráfico das chegadas e participação do Brasil
+bd |> filter(destino == "Brazil", ano %in% c(2010:2019)) |> 
+  ggplot(aes(x = ano, y = chegadas)) +
+  geom_bar(stat="identity") +
+  geom_text(aes(label = formatC(chegadas, format = "f", big.mark = ".", decimal.mark = ",", digits = 1)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.3, size = 2.5) +
+   scale_x_continuous(breaks = seq(2010, 2019, 2),
+                      minor_breaks = seq(2010, 2019, 1)) +
+  scale_y_continuous(labels = fun_formatC_inteiros) +
+  labs(
+    title = "Total de chegadas turísticas internacionais ao Brasil, por ano",
+    y = "Chegadas (mil)",
+    x = "Ano")
+
+# Calcula o fator de escala a partir dos dados filtrados
+bd_br <- bd |> filter(destino == "Brazil", ano %in% 2010:2019)
+
+escala <- max(bd_br$chegadas, na.rm = TRUE) / max(bd_br$pct, na.rm = TRUE)
+
+bd_br |>
+  ggplot(aes(x = ano, y = chegadas)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_line(aes(y = pct * escala), color = "firebrick", linewidth = 1) +
+  geom_point(aes(y = pct * escala), color = "firebrick", size = 2.5) +
+  geom_text(
+    aes(label = formatC(chegadas, format = "f", big.mark = ".", 
+                        decimal.mark = ",", digits = 1)),
+    vjust = -0.3, size = 2.5
+  ) +
+  geom_text(
+    aes(y = pct * escala,
+        label = formatC(pct, format = "f", big.mark = ".", 
+                        decimal.mark = ",", digits = 2)),
+    color = "firebrick", vjust = -0.7, size = 2.5
+  ) +
+  scale_x_continuous(
+    breaks = seq(2010, 2019, 1),
+    minor_breaks = seq(2010, 2019, 1)
+  ) +
+  scale_y_continuous(
+    labels = fun_formatC_inteiros,
+    sec.axis = sec_axis(
+      transform = ~ . / escala,
+      name = "Participação no mundo (%)",
+      labels = scales::label_number(accuracy = 0.1, decimal.mark = ",", suffix = "%")
+    )
+  ) +
+  labs(
+    y = "Chegadas (mil)",
+    x = "Ano"
+  ) +
+  theme(
+    axis.title.y.right = element_text(color = "firebrick"),
+    axis.text.y.right  = element_text(color = "firebrick")
+  )
+
+```
+
+```{r}
 #| label: fig-participacao-brasil
 #| fig-cap: "Participação do Brasil no total de chegadas turísticas internacionais, por país e ano"
 
