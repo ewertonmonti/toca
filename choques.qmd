@@ -22,7 +22,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-## Configurações iniciais
+<!-- ## Configurações iniciais -->
 ```{r}
 #| label: Configurações iniciais
 
@@ -93,27 +93,29 @@ A Organização Mundial da Saúde declarou a pandemia de covid-19 em março de 2
 
 A proximidade temporal entre os quatro eventos, particularmente entre a Copa do Mundo 2014, a recessão de 2015 e os Jogos Olímpicos de 2016, torna mais adequado analisar os eventos em conjunto, uma vez que é praticamente impossível distinguir os efeitos específicos de cada um deles ao longo do tempo.
 
-> Inserir dados descritivos da série brasileira
-
 ## Metodologia
 
-A análise foi realizada usando Interrupted Time Series (ITS), uma técnica de estimação pertencente ao conjunto dos "event-study", apropriada para analisar séries de dados temporais de somente uma unidade (no caso, o Brasil) e em que há eventos que causam choques nas séries.
+A análise foi realizada usando Interrupted Time Series (ITS), uma técnica de estimação pertencente ao conjunto dos "event-study", apropriada para analisar séries de dados temporais de somente uma unidade (no caso, o Brasil) e em que há eventos que causam choques nas séries.^[ver por exemplo: Lopez Bernal, J., Cummins, S., & Gasparrini, A. (2016). Interrupted time series regression for the evaluation of public health interventions: A tutorial. International Journal of Epidemiology, dyw098. https://doi.org/10.1093/ije/dyw098]
 
-Foram elaboradas estimativas para o fluxo anual e o fluxo mensal, cobrindo o período entre 2009 e 2024. Os dados anuais do receptivo turístico internacional no Brasil foram examinados em quatro formatos:
+Foram elaboradas estimativas para o fluxo anual e o fluxo mensal, cobrindo o período entre 2009 e 2024. 
+
+Os dados anuais do receptivo turístico internacional no Brasil foram examinados em quatro formatos:
 
 1. Volume total de chegadas.
 
 2. Variação anual do volume total de chegadas (isto é, a primeira diferença).
 
-3. Logaritmo natural do volume total de chegadas, que permite interpretar os coeficientes estimados como taxas de variação aproximadas.
+3. Logaritmo natural (log) do volume total de chegadas, que permite interpretar os coeficientes estimados como taxas de variação.
 
 4. Participação (_market-share_) do Brasil no volume turístico internacional.
 
-> Explicar inclinação e intercepto
+No entanto, o modelo anual com dados em primeira diferença e o modelo com dados mensais foram descartados por não apresentarem resultados robustos.
+
+Para cada evento, o modelo estima dois coeficientes. O *intercepto* captura a mudança abrupta e permanente no nível das chegadas que se instala a partir do evento — ou seja, o deslocamento imediato da série em relação à trajetória que ela seguia antes. A *inclinação* captura a mudança na taxa de crescimento das chegadas após o evento, indicando se a série passou a crescer mais rápido ou mais lento do que crescia anteriormente. Juntos, os dois coeficientes permitem distinguir entre um efeito pontual, restrito ao período imediato do evento, e um efeito persistente, que altera a trajetória de longo prazo das chegadas.
 
 O modelo buscava estimar coeficientes para o intercepto e a inclinação associados a cada um dos quatro eventos. No entanto, por conta da proximidade temporal entre a recessão de 2015 e os Jogos Olímpicos de 2016, os coeficientes relativos à mudança na inclinação causada por estes dois eventos foi eliminada do modelo, por conta de multicolinearidade. Desta forma, há estimativas de intercepto e inclinação para a Copa e a pandemia, mas para a recessão e os Jogos Olímpicos só há estimativas para o intercepto.
 
-As estimativas dos modelos ITS são apresentadas com erros-padrão robustos à autocorrelação e heterocedasticidade (estimador Newey-West HAC).
+A escolha da matriz de variância-covariância foi orientada pelos diagnósticos específicos de cada modelo. Nos modelos em nível e em log, os erros-padrão foram estimados com correção de Newey-West com defasagem máxima igual a 2, dado que os testes de Breusch-Godfrey indicaram autocorrelação serial até a segunda ordem. Para o modelo de participação, o teste não rejeitou a hipótese nula de ausência de autocorrelação serial ao nível de 5%; por cautela, os erros-padrão foram estimados com matriz HAC geral.
 
 ## Fluxo anual, análise agregada, 2009-2024
 
@@ -146,6 +148,8 @@ bd_anual <- bda |>
 
 
 ### Chegadas em nível
+
+A observação da série das chegadas turísticas internacionais no Brasil para o período de 2009 a 2024 permite identificar três fases. A primeira delas seria entre 2009 e 2014, com uma sequência de crescimento do volume de chegadas no Brasil. A segunda fase, entre 2015 e 2019 o país apresenta certa estagnação, ainda que batendo os recordes históricos até então. A pandemia de covid-19 marca a terceira fase, com quedra brutal do fluxo em 2020 e 2021, e rápida retomada nos anos seguintes, culminando em novo recorde de chegadas em 2024.
 
 #### Série
 ```{r}
@@ -191,6 +195,9 @@ stargazer(fit_anual_nivel, type = "text")
 # Erros-padrão robustos à autocorrelação e heterocedasticidade (Newey-West HAC)
 epHAC <- coeftest(fit_anual_nivel, vcov = vcovHAC(fit_anual_nivel))
 
+# bwNeweyWest
+bwNeweyWest(fit_anual_nivel, prewhite = FALSE)
+
 # Tabela formatada com HAC
 tidy(epHAC) %>%
   mutate(ic_inf = 100 * (estimate - 1.96 * std.error),
@@ -198,21 +205,38 @@ tidy(epHAC) %>%
   mutate(p.value = scales::label_pvalue(accuracy = 0.001)(p.value)) |> 
   print()
 
+# Erros-padrão robustos à autocorrelação com banda fixa em 2, por conta da autocorrelação de segunda ordem
+epNW2_nivel <- coeftest(fit_anual_nivel, vcov = NeweyWest(fit_anual_nivel, lag = 2, prewhite = FALSE))
+
 ```
 
 O modelo estimado para as chegadas internacionais em nível revela coeficientes estatisticamente significantes para todos os eventos, com exceção da recessão de 2015. O coeficiente associado ao tempo (t) mostra uma tendência de crescimento de aproximadamente 254 mil chegadas por ano.
 
-Para a Copa do Mundo foi identificado um efeito positivo no intercepto e um efeito negativo na inclinação. A estimativa do intercepto é de aproximadamente 600 mil chegadas, o que significa que o evento causou um crescimento do fluxo internacional no Brasil mais de duas vezes superior ao que seria esperado (as 254 mil chegadas estimadas para "t"). Por outro lado, o coeficiente negativo da inclinição revela que após o evento foi registrada uma tendência de queda do volume de chegadas, interrompendo a trajetória de crescimento que se observava desde o início da série. Isso também pode estar atrelado à aproximação da recessão econômica de 2015.
+Para a Copa do Mundo foi identificado um efeito positivo no intercepto e um efeito negativo na inclinação. A estimativa do intercepto é de aproximadamente 600 mil chegadas, o que significa que o evento causou um crescimento do fluxo internacional no Brasil mais de duas vezes superior ao que seria esperado (as 254 mil chegadas estimadas para "t"). Por outro lado, o coeficiente negativo da inclinação revela que após o evento foi registrada uma tendência de queda do volume de chegadas, interrompendo a trajetória de crescimento que se observava desde o início da série. Isso também pode estar atrelado à aproximação da recessão econômica de 2015.
 
-O coeficiente estimado para a recessão não é significante, o que significa não ser possível concluir sobre a existência ou não de efeitos a respeito.
+O coeficiente estimado para a recessão é negativo e significante apenas a 10%. Há indícios de perda no volume de chegadas em decorrência da crise econômica, mas não é possível concluir com segurança a respeito.
 
-Os Jogos Olímpicos de 2016 geraram um crescimento de aproximadamente 360 mil chegadas, frente à tendência anterior ao evento. É um efeito positivo, mas inferior ao da Copa do Mundo de 2014.
+Os Jogos Olímpicos de 2016 geraram um crescimento de aproximadamente 360 mil chegadas, frente à tendência anterior ao evento. É um efeito positivo, ainda que inferior ao da Copa do Mundo de 2014.
 
 Por fim, o modelo estima que a pandemia de covid-19 representou uma brutal queda do fluxo turístico internacional, da ordem de 6,9 milhões de chegadas. O parâmetro associado à inclinação do evento mostra que após 2020 a série apresentou crescimento de aproximadamente 1,5 milhão de chegadas por ano, vinculada à recuperação acelerada que foi se materializando principalmente de 2022 em diante.
 
 
 ```{r}
-stargazer(epHAC, type = "text")
+stargazer(epNW2_nivel, type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          covariate.labels = c("Tendência linear",
+                               "Copa 2014-intercepto",
+                               "Copa 2014-inclinação",
+                               "Recessão 2015-intercepto",
+                               "Rio 2016-intercepto",
+                               "Pandemia-intercepto",
+                               "Pandemia-inclinação",
+                               "Constante"),
+          digit.separator = ".",
+          decimal.mark = ",",
+          model.numbers = FALSE, model.names = FALSE, 
+          dep.var.caption = "",
+          dep.var.labels = "Chegadas em nível")
 ```
 
 ```{r}
@@ -281,13 +305,19 @@ ggplot(bd_anual, aes(x = ano)) +
 
 #### Autocorrelação
 
-O teste Breusch-Godfrey detectou autocorrelação de segunda ordem nos resíduos (LM = 6,28; p = 0,043). A validade da inferência foi assegurada pela aplicação do estimador HAC de Newey-West, com largura de banda fixada em 2, confirmada pela estacionariedade dos resíduos (ADF: p < 0,01 para k ≤ 1).
+O teste Breusch-Godfrey detectou autocorrelação de segunda ordem nos resíduos (LM = 6,28; p = 0,043). A estacionariedade dos resíduos foi confirmada pelo teste ADF (p < 0,01 para k ≤ 1), assegurando a validade assintótica do estimador HAC de Newey-West. Os erros-padrão foram estimados com largura de banda fixada em 2, correspondente à ordem de autocorrelação identificada pelo diagnóstico.
 
 ```{r}
 #| label: anual nível Diagnóstico de autocorrelação
 
 # Teste Breusch-Godfrey (H0: sem autocorrelação nos resíduos)
 bgtest(fit_anual_nivel, order = 2)
+
+# Lag 1 — mais parcimonioso com n pequeno
+adf.test(residuals(fit_anual_nivel), k = 1)
+
+# Lag 0 — DF puro, sem correção AR
+adf.test(residuals(fit_anual_nivel), k = 0)
 ```
 
 ```{r}
@@ -430,168 +460,190 @@ summary(fit_arima_anual)
 
 
 
-### Chegadas em 1ª diferença
-#### Série
-```{r}
+<!-- ### Chegadas em 1ª diferença -->
 
-bd_anual_dif <- bd_anual |> 
-  dplyr::select(ano:slope_pand) |> 
-  mutate(dchegadas = chegadas - dplyr::lag(chegadas, 1L)) |> 
-  filter(ano != 2009)
+<!-- A série em primeira diferença - ou seja, a variação anual em termos absolutos - revela um cenário de crescimento das chegadas entre 2010 e 2013, embora menor a cada ano. Em 2014, ano da Copa do Mundo de Futebol, houve um grande salto em relação ao ano anterior, com mais de 600 mil chegadas adicionais. O ano de 2015 registra decrescimento em relação ao anterior, justificado pelo volume anormal de chegadas em 2014. No ano dos Jogos Olímpícos 2016 há crescimento, mas correspondente a somente 39% do registrado em 2014. Em seguida há dois anos de estabilidade, seguidos por uma queda mais significativa em 2019. Como apontado anteriormente, a pandemia de covid-19 significou forte queda do volume de chegadas em 2020 e 2021, mas rápida recuperação nos anos seguintes. -->
 
-bd_anual_dif |> mutate(dchegadas = dchegadas / 1000) |> 
-  ggplot(aes(x=ano, y=dchegadas)) + 
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = formatC(dchegadas, format = "f", big.mark = ".", decimal.mark = ",", digits = 1)), 
-            position = position_dodge(width = 0.9), 
-            vjust = -0.3, size = 2.5) +
-   scale_x_continuous(breaks = seq(2010, 2024, 1), minor_breaks = NULL) +
-  scale_y_continuous(labels = fun_formatC_inteiros) +
-  labs(
-    title = "Variação chegadas turísticas internacionais ao Brasil, por ano",
-    y = "Variação das chegadas internacionais (mil)",
-    x = "Ano")
-```
+<!-- #### Série -->
+<!-- ```{r} -->
 
-#### Modelo
-```{r}
-#| label: anual diferença Modelo ITS
-#| include: false
+<!-- bd_anual_dif <- bd_anual |>  -->
+<!--   dplyr::select(ano:slope_pand) |>  -->
+<!--   mutate(dchegadas = chegadas - dplyr::lag(chegadas, 1L)) |>  -->
+<!--   filter(ano != 2009) -->
 
-# O modelo estima, para cada evento:
-#   β_D_k    = mudança abrupta no nível (efeito imediato)
-#   β_slope_k = mudança na tendência após o evento (efeito acumulado por ano)
+<!-- bd_anual_dif |> mutate(dchegadas = dchegadas / 1000) |>  -->
+<!--   ggplot(aes(x=ano, y=dchegadas)) +  -->
+<!--   geom_bar(stat = "identity") + -->
+<!--   geom_text(aes(label = formatC(dchegadas, format = "f", big.mark = ".", decimal.mark = ",", digits = 1)),  -->
+<!--             position = position_dodge(width = 0.9),  -->
+<!--             vjust = -0.3, size = 2.5) + -->
+<!--    scale_x_continuous(breaks = seq(2010, 2024, 1), minor_breaks = NULL) + -->
+<!--   scale_y_continuous(labels = fun_formatC_inteiros) + -->
+<!--   labs( -->
+<!--     title = "Variação chegadas turísticas internacionais ao Brasil, por ano", -->
+<!--     y = "Variação das chegadas internacionais (mil)", -->
+<!--     x = "Ano") -->
+<!-- ``` -->
 
-fit_anual_dif <- lm(
-  dchegadas ~ t +
-    D_copa     + slope_copa  +
-    D_rec      + slope_rec   +
-    D_rio      + slope_rio   +
-    D_pand     + slope_pand,
-  data = bd_anual_dif
-)
+<!-- #### Modelo -->
 
-# Erros-padrão normais
-summary(fit_anual_dif)
+<!-- O modelo ITS para os dados anuais em primeira diferença é prejudicado pela identificação de autocorrelação de segunda ordem segundo o teste de Breusch-Godfrey (LM = 14.97, p = 0.001). Por conta disso, seus resultados não serão analisados. -->
 
-# Erros-padrão robustos à autocorrelação e heterocedasticidade (Newey-West HAC)
-epHAC <- coeftest(fit_anual_dif, vcov = vcovHAC(fit_anual_dif))
+<!-- > No relatório, apenas mencionar na metodologia que foi tentado um modelo com chegadas em diferença, mas que foi descartado por conta da autocorrelação detectada. -->
 
-# Tabela formatada com HAC
-tidy(epHAC) %>%
-  mutate(ic_inf = 100 * (estimate - 1.96 * std.error),
-         ic_sup = 100 * (estimate + 1.96 * std.error)) |> 
-  mutate(p.value = scales::label_pvalue(accuracy = 0.001)(p.value)) |> 
-  print()
-```
+<!-- ```{r} -->
+<!-- #| label: anual diferença Modelo ITS -->
+<!-- #| include: false -->
 
+<!-- # O modelo estima, para cada evento: -->
+<!-- #   β_D_k    = mudança abrupta no nível (efeito imediato) -->
+<!-- #   β_slope_k = mudança na tendência após o evento (efeito acumulado por ano) -->
 
-```{r}
-stargazer(epHAC, type = "text")
-```
-#### Visualização
+<!-- fit_anual_dif <- lm( -->
+<!--   dchegadas ~ t + -->
+<!--     D_copa     + slope_copa  + -->
+<!--     D_rec      + slope_rec   + -->
+<!--     D_rio      + slope_rio   + -->
+<!--     D_pand     + slope_pand, -->
+<!--   data = bd_anual_dif -->
+<!-- ) -->
 
-```{r}
-#| label: anual dif plot
+<!-- # Erros-padrão normais -->
+<!-- summary(fit_anual_dif) -->
 
+<!-- # Erros-padrão robustos à autocorrelação e heterocedasticidade (Newey-West HAC) -->
+<!-- epHAC_dif <- coeftest(fit_anual_dif, vcov = vcovHAC(fit_anual_dif)) -->
 
-bd_anual_dif <- bd_anual_dif |> 
-  mutate(fitted = fitted(fit_anual_dif),
-         # Contrafactual: remove os efeitos dos eventos mantendo apenas t + intercepto
-         contraf = coef(fit_anual_dif)["(Intercept)"] + coef(fit_anual_dif)["t"] * t)
-
-ggplot(bd_anual_dif, aes(x = ano)) +
-  geom_point(aes(y = dchegadas, color = "Dados reais"), size = 2) +
-  geom_line(aes(y = fitted, color = "Modelo Ajustado"),  
-            linewidth = 1, linetype = "solid", na.rm = TRUE) +
-  geom_line(aes(y = contraf, color = "Contrafactual"), 
-            linewidth = 0.8, linetype = "dashed", na.rm = TRUE) +
-  geom_vline(xintercept = c(2014, 2015, 2016, 2020),
-             linetype = "dotted", color = "red", alpha = 0.7) +
-  annotate("text", x = c(2014, 2015, 2016, 2020),
-           y = max(bd_anual_dif$dchegadas, na.rm = TRUE),
-           label = labels_eventos,
-           angle = 90, vjust = -0.3, hjust = .9,
-           size = 3, color = "red") +
-  scale_y_continuous(labels = fun_formatC_inteiros) +
-  scale_x_continuous(breaks = seq(2010, 2024, 1), minor_breaks = NULL) +
-  scale_color_manual(values = c("Dados reais" = "black",
-                                "Modelo Ajustado" = "steelblue", 
-                                "Contrafactual" = "gray50"),
-                     breaks = c("Dados reais", "Modelo Ajustado", "Contrafactual")) +
-  labs(title = "Chegadas turísticas internacionais ao Brasil (anual)",
-       x = "Ano", 
-       y = "Variação anual das chegadas internacionais",
-       color = "") + 
-  theme_minimal() +
-  theme(legend.position = "bottom")
-
-```
-
-```{r}
-#| label: anual dif plot alternativo
-#| eval: false
-#| include: false
-
-# Gráfico com intervalo de confiança do contrafactual
-
- 
-# Cria dataset contrafactual: zera todas as variáveis de evento
-bd_contraf_dif <- bd_anual_dif |>
-  mutate(
-    D_copa = 0, slope_copa = 0,
-    D_rec  = 0, slope_rec  = 0,
-    D_rio  = 0, slope_rio  = 0,
-    D_pand = 0, slope_pand = 0
-  )
-
-# Predição com intervalo de confiança
-pred_contraf_dif <- predict(
-  fit_anual_dif,
-  newdata  = bd_contraf_dif,
-  interval = "confidence",
-  level    = 0.95) |>   
-  as_tibble() |>
-  rename(contraf_point = fit, contraf_lo = lwr, contraf_hi = upr)
-
-bd_anual_dif <- bind_cols(bd_anual_dif, pred_contraf_dif)
-
-# Gráfico com banda de incerteza no contrafactual
-ggplot(bd_anual_dif, aes(x = ano)) +
-  geom_ribbon(aes(ymin = contraf_lo, ymax = contraf_hi),
-              fill = "gray70", alpha = 0.3) +
-  geom_line(aes(y = contraf_point), color = "gray50",
-            linetype = "dashed", linewidth = 0.8) +
-  geom_line(aes(y = fitted(fit_anual_dif)), color = "steelblue",
-            linewidth = 1) +
-  geom_point(aes(y = dchegadas), color = "black", size = 2) +
-  geom_vline(xintercept = c(2014, 2015, 2016, 2020),
-             linetype = "dotted", color = "red", alpha = 0.7) +
-  theme_minimal()
-
-```
-
-#### Autocorrelação
-```{r}
-#| label: anual dif Diagnóstico de autocorrelação
-# Teste Breusch-Godfrey (H0: sem autocorrelação nos resíduos)
-bgtest(fit_anual_dif, order = 2)
-```
-```{r}
-# Padrão de autocorrelação nos resíduos
-acf(residuals(fit_anual_dif),  main = "ACF — modelo em diferença")
-pacf(residuals(fit_anual_dif), main = "PACF — modelo em diferença")
-```
+<!-- # Tabela formatada com HAC -->
+<!-- tidy(epHAC_dif) %>% -->
+<!--   mutate(ic_inf = 100 * (estimate - 1.96 * std.error), -->
+<!--          ic_sup = 100 * (estimate + 1.96 * std.error)) |>  -->
+<!--   mutate(p.value = scales::label_pvalue(accuracy = 0.001)(p.value)) |>  -->
+<!--   print() -->
+<!-- ``` -->
 
 
-```{r}
-#| eval: false
-#| include: false
-# Se autocorrelação for detectada, ajustar com ARIMA nos resíduos
+<!-- ```{r} -->
+<!-- stargazer(epHAC_dif, type = "text", -->
+<!--           star.cutoffs = c(0.05, 0.01, 0.001), -->
+<!--           covariate.labels = c("Tendência linear", -->
+<!--                                "Copa 2014-intercepto", -->
+<!--                                "Copa 2014-inclinação", -->
+<!--                                "Recessão 2015-intercepto", -->
+<!--                                "Rio 2016-intercepto", -->
+<!--                                "Pandemia-intercepto", -->
+<!--                                "Pandemia-inclinação", -->
+<!--                                "Constante"), -->
+<!--           digit.separator = ".", -->
+<!--           decimal.mark = ",", -->
+<!--           model.numbers = FALSE, model.names = FALSE,  -->
+<!--           dep.var.caption = "", -->
+<!--           dep.var.labels = "Chegadas em diferença") -->
+<!-- ``` -->
+<!-- #### Visualização -->
 
-# Gráfico dos resíduos
-checkresiduals(fit_anual_dif$residuals)
-```
+<!-- ```{r} -->
+<!-- #| label: anual dif plot -->
+
+
+<!-- bd_anual_dif <- bd_anual_dif |>  -->
+<!--   mutate(fitted = fitted(fit_anual_dif), -->
+<!--          # Contrafactual: remove os efeitos dos eventos mantendo apenas t + intercepto -->
+<!--          contraf = coef(fit_anual_dif)["(Intercept)"] + coef(fit_anual_dif)["t"] * t) -->
+
+<!-- ggplot(bd_anual_dif, aes(x = ano)) + -->
+<!--   geom_point(aes(y = dchegadas, color = "Dados reais"), size = 2) + -->
+<!--   geom_line(aes(y = fitted, color = "Modelo Ajustado"),   -->
+<!--             linewidth = 1, linetype = "solid", na.rm = TRUE) + -->
+<!--   geom_line(aes(y = contraf, color = "Contrafactual"),  -->
+<!--             linewidth = 0.8, linetype = "dashed", na.rm = TRUE) + -->
+<!--   geom_vline(xintercept = c(2014, 2015, 2016, 2020), -->
+<!--              linetype = "dotted", color = "red", alpha = 0.7) + -->
+<!--   annotate("text", x = c(2014, 2015, 2016, 2020), -->
+<!--            y = max(bd_anual_dif$dchegadas, na.rm = TRUE), -->
+<!--            label = labels_eventos, -->
+<!--            angle = 90, vjust = -0.3, hjust = .9, -->
+<!--            size = 3, color = "red") + -->
+<!--   scale_y_continuous(labels = fun_formatC_inteiros) + -->
+<!--   scale_x_continuous(breaks = seq(2010, 2024, 1), minor_breaks = NULL) + -->
+<!--   scale_color_manual(values = c("Dados reais" = "black", -->
+<!--                                 "Modelo Ajustado" = "steelblue",  -->
+<!--                                 "Contrafactual" = "gray50"), -->
+<!--                      breaks = c("Dados reais", "Modelo Ajustado", "Contrafactual")) + -->
+<!--   labs(title = "Chegadas turísticas internacionais ao Brasil (anual)", -->
+<!--        x = "Ano",  -->
+<!--        y = "Variação anual das chegadas internacionais", -->
+<!--        color = "") +  -->
+<!--   theme_minimal() + -->
+<!--   theme(legend.position = "bottom") -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: anual dif plot alternativo -->
+<!-- #| eval: false -->
+<!-- #| include: false -->
+
+<!-- # Gráfico com intervalo de confiança do contrafactual -->
+
+
+<!-- # Cria dataset contrafactual: zera todas as variáveis de evento -->
+<!-- bd_contraf_dif <- bd_anual_dif |> -->
+<!--   mutate( -->
+<!--     D_copa = 0, slope_copa = 0, -->
+<!--     D_rec  = 0, slope_rec  = 0, -->
+<!--     D_rio  = 0, slope_rio  = 0, -->
+<!--     D_pand = 0, slope_pand = 0 -->
+<!--   ) -->
+
+<!-- # Predição com intervalo de confiança -->
+<!-- pred_contraf_dif <- predict( -->
+<!--   fit_anual_dif, -->
+<!--   newdata  = bd_contraf_dif, -->
+<!--   interval = "confidence", -->
+<!--   level    = 0.95) |>    -->
+<!--   as_tibble() |> -->
+<!--   rename(contraf_point = fit, contraf_lo = lwr, contraf_hi = upr) -->
+
+<!-- bd_anual_dif <- bind_cols(bd_anual_dif, pred_contraf_dif) -->
+
+<!-- # Gráfico com banda de incerteza no contrafactual -->
+<!-- ggplot(bd_anual_dif, aes(x = ano)) + -->
+<!--   geom_ribbon(aes(ymin = contraf_lo, ymax = contraf_hi), -->
+<!--               fill = "gray70", alpha = 0.3) + -->
+<!--   geom_line(aes(y = contraf_point), color = "gray50", -->
+<!--             linetype = "dashed", linewidth = 0.8) + -->
+<!--   geom_line(aes(y = fitted(fit_anual_dif)), color = "steelblue", -->
+<!--             linewidth = 1) + -->
+<!--   geom_point(aes(y = dchegadas), color = "black", size = 2) + -->
+<!--   geom_vline(xintercept = c(2014, 2015, 2016, 2020), -->
+<!--              linetype = "dotted", color = "red", alpha = 0.7) + -->
+<!--   theme_minimal() -->
+
+<!-- ``` -->
+
+<!-- #### Autocorrelação -->
+<!-- ```{r} -->
+<!-- #| label: anual dif Diagnóstico de autocorrelação -->
+<!-- # Teste Breusch-Godfrey (H0: sem autocorrelação nos resíduos) -->
+<!-- bgtest(fit_anual_dif, order = 2) -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- # Padrão de autocorrelação nos resíduos -->
+<!-- acf(residuals(fit_anual_dif),  main = "ACF — modelo em diferença") -->
+<!-- pacf(residuals(fit_anual_dif), main = "PACF — modelo em diferença") -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- #| eval: false -->
+<!-- #| include: false -->
+<!-- # Se autocorrelação for detectada, ajustar com ARIMA nos resíduos -->
+
+<!-- # Gráfico dos resíduos -->
+<!-- checkresiduals(fit_anual_dif$residuals) -->
+<!-- ``` -->
 
 ### Chegadas em log
 #### Série
@@ -629,6 +681,21 @@ bd_anual_log |>
 ```
 
 #### Modelo
+
+O modelo relativo ao logaritmo natural das chegadas turísticas internacionais ao Brasil revela, após conversão dos coeficientes para percentuais, uma tendência linear de crescimento 4,8% antes dos eventos analisados.
+
+Estima-se que em 2014 houve um aumento de cerca de 10% acima da tendência. Após 2014, a tendência caiu 5,4 pontos percentuais ao ano, gerando uma tendência líquida negativa (4,8% - 5,4% = -0,6% ao ano). Isso sugere que a Copa causou um efeito imediato positivo, mas não deixou legado de crescimento.
+
+O modelo em log captou de forma significante os efeitos negativos da pandemia, ao contrário do que ocorreu com o modelo de nível. Foi estimado um efeito imediato negativo de 1,1%.
+
+Os Jogos Olímpicos 2016 mostraram um efeito positivo e significante de 5,8% no ano do evento.
+
+As estimativas relativas à pandemia reforçam o impacto imediato negativo (-87,5%) e a posterior recuperação acelerada (56%).
+
+Os resultados são condizentes com o modelo em nível. Houve leve divergência apenas no que tange à recessão de 2015. Embora os dois modelos estimem efeito negativo, apenas o modelo em log apresentou resultados estatisticamente significantes a 5%.
+
+
+
 ```{r}
 #| label: anual log Modelo ITS
 #| include: false
@@ -651,17 +718,53 @@ summary(fit_anual_log)
 # Erros-padrão robustos à autocorrelação e heterocedasticidade (Newey-West HAC)
 epHAC <- coeftest(fit_anual_log, vcov = vcovHAC(fit_anual_log))
 
-# Tabela formatada com HAC
+# bwNeweyWest(fit_anual_log)
+bwNeweyWest(fit_anual_log, prewhite = FALSE)
+
+# Tabela formatada
 tidy(epHAC) %>%
   mutate(ic_inf = 100 * (estimate - 1.96 * std.error),
          ic_sup = 100 * (estimate + 1.96 * std.error)) |> 
   mutate(p.value = scales::label_pvalue(accuracy = 0.001)(p.value)) |> 
   print()
+
+# Erros-padrão robustos à autocorrelação com banda fixa em 2, por conta da autocorrelação de segunda ordem
+epNW2_log <- coeftest(fit_anual_log, vcov = NeweyWest(fit_anual_log, lag = 2, prewhite = FALSE))
+
 ```
 
 ```{r}
-stargazer(epHAC, type = "text")
+stargazer(epNW2_log, type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          covariate.labels = c("Tendência linear",
+                               "Copa 2014-intercepto",
+                               "Copa 2014-inclinação",
+                               "Recessão 2015-intercepto",
+                               "Rio 2016-intercepto",
+                               "Pandemia-intercepto",
+                               "Pandemia-inclinação",
+                               "Constante"),
+          digit.separator = ".",
+          decimal.mark = ",",
+          model.numbers = FALSE, model.names = FALSE, 
+          dep.var.caption = "",
+          dep.var.labels = "Chegadas em log")
 ```
+Coeficientes em log convertidos para percentual:
+
+```{r}
+coefs <- c(t          =  0.048,
+           D_copa     =  0.094,
+           slope_copa = -0.056,
+           D_rec      = -0.011,
+           D_rio      =  0.056,
+           D_pand     = -2.084,
+           slope_pand =  0.445)
+
+round((exp(coefs) - 1) * 100, 1) |> as.data.frame() |> rename(pct = 1)
+```
+
+
 
 #### Visualização
 ```{r}
@@ -743,6 +846,9 @@ ggplot(bd_anual_log, aes(x = ano)) +
 
 
 #### Autocorrelação
+
+O teste Breusch-Godfrey detectou autocorrelação de segunda ordem nos resíduos (LM = 7,32; p = 0,026). A estacionariedade dos resíduos foi confirmada pelo teste ADF (p < 0,01 para k ≤ 1), assegurando a validade assintótica do estimador HAC de Newey-West. Os erros-padrão foram estimados com largura de banda fixada em 2, correspondente à ordem de autocorrelação identificada pelo diagnóstico.
+
 ```{r}
 #| label: anual log Diagnóstico de autocorrelação
 
@@ -770,7 +876,7 @@ checkresiduals(fit_anual_log$residuals)
 
 
 ### Participação do Brasil
-#### Importação de dados
+
 ```{r}
 #| label: Cria banco da participação
 #| include: false
@@ -843,23 +949,23 @@ hl_long <- hl |>
 # Fonte 2024:2025 UN Tourism Dashboard (https://www.untourism.int/tourism-data/un-tourism-tourism-dashboard, 19/2/2026)
 # Fonte 2009 Mundo: Anuário Estatístico de Turismo 2022 - Ano Base 2021. https://www.gov.br/turismo/pt-br/acesso-a-informacao/acoes-e-programas/observatorio/anuario-estatistico/anuario-estatistico-de-turismo-2021-ano-base-2020/copy_of_anuario_estatistico_de_turismo_2022_vol49_1ed__plan_excel.zip
 dados_extras <- data.frame(destino = character(), ano = numeric(), chegadas = numeric())
-dados_extras <- add_row(dados_extras, destino = "World",              ano = 2024, chegadas = 1465000)
-dados_extras <- add_row(dados_extras, destino = "World",              ano = 2025, chegadas = 1523000)
-dados_extras <- add_row(dados_extras, destino = "Brazil",             ano = 2024, chegadas = 6800)
-dados_extras <- add_row(dados_extras, destino = "Brazil",             ano = 2025, chegadas = 9300)
-dados_extras <- add_row(dados_extras, destino = "Peru",               ano = 2024, chegadas = 3300)
+dados_extras <- add_row(dados_extras, destino = "World", ano = 2024, chegadas = 1465000)
+dados_extras <- add_row(dados_extras, destino = "World", ano = 2025, chegadas = 1523000)
+dados_extras <- add_row(dados_extras, destino = "Brazil", ano = 2024, chegadas = 6800)
+dados_extras <- add_row(dados_extras, destino = "Brazil", ano = 2025, chegadas = 9300)
+dados_extras <- add_row(dados_extras, destino = "Peru", ano = 2024, chegadas = 3300)
 dados_extras <- add_row(dados_extras, destino = "Dominican Republic", ano = 2024, chegadas = 8100)
 dados_extras <- add_row(dados_extras, destino = "Dominican Republic", ano = 2025, chegadas = 8500)
-dados_extras <- add_row(dados_extras, destino = "Colombia",           ano = 2024, chegadas = 6800)
-dados_extras <- add_row(dados_extras, destino = "Spain",              ano = 2024, chegadas = 93800)
-dados_extras <- add_row(dados_extras, destino = "Chile",              ano = 2024, chegadas = 5200)
-dados_extras <- add_row(dados_extras, destino = "Costa Rica",         ano = 2024, chegadas = 2900)
-dados_extras <- add_row(dados_extras, destino = "Jamaica",            ano = 2024, chegadas = 2900)
-dados_extras <- add_row(dados_extras, destino = "Cuba",               ano = 2023, chegadas = 2400)
-dados_extras <- add_row(dados_extras, destino = "Cuba",               ano = 2024, chegadas = 2200)
-dados_extras <- add_row(dados_extras, destino = "Argentina",          ano = 2024, chegadas = 6600)
-dados_extras <- add_row(dados_extras, destino = "Mexico",             ano = 2024, chegadas = 45000)
-dados_extras <- add_row(dados_extras, destino = "World",             ano = 2009, chegadas = 892000)
+dados_extras <- add_row(dados_extras, destino = "Colombia", ano = 2024, chegadas = 6800)
+dados_extras <- add_row(dados_extras, destino = "Spain", ano = 2024, chegadas = 93800)
+dados_extras <- add_row(dados_extras, destino = "Chile", ano = 2024, chegadas = 5200)
+dados_extras <- add_row(dados_extras, destino = "Costa Rica", ano = 2024, chegadas = 2900)
+dados_extras <- add_row(dados_extras, destino = "Jamaica", ano = 2024, chegadas = 2900)
+dados_extras <- add_row(dados_extras, destino = "Cuba", ano = 2023, chegadas = 2400)
+dados_extras <- add_row(dados_extras, destino = "Cuba", ano = 2024, chegadas = 2200)
+dados_extras <- add_row(dados_extras, destino = "Argentina", ano = 2024, chegadas = 6600)
+dados_extras <- add_row(dados_extras, destino = "Mexico", ano = 2024, chegadas = 45000)
+dados_extras <- add_row(dados_extras, destino = "World", ano = 2009, chegadas = 892000)
 
 hl_long <- bind_rows(hl_long, dados_extras, bd_chegadas_2009)
 hl_long <- hl_long |> arrange(destino, ano) |> na.omit()
@@ -881,6 +987,8 @@ rm(list = c("bd_completo_brasil", "bd_completo", "bd_concorrentes", "bd_mundo",
             "bd_chegadas_2009", "bd_raw_chegadas", "dados_extras", "hl", "hl_americas",
             "hl_europe", "hl_long", "hl_regions", "path_chegadas", "tipos_hl", "concorrentes"))
 ```
+
+A cota do Brasil no total de chegadas mundiais se mantinha praticamente estagnada 2010 e 2016. Em 2014 foi obtido o melhor resultado, com 0,56%. Nos três anos anteriores ao início da pandemia de covid-19 o país registrou perdas seguidas de participação, chegando a 0,43% em 2019. Em 2023 e 2024 o país superou a participação que tinha em 2019, mas demonstra dificuldade para retomar o patamar registrado nos anos 2010.
 
 #### Série
 ```{r}
@@ -920,18 +1028,45 @@ fit_anual_pct <- lm(
 summary(fit_anual_pct)
 
 # Erros-padrão robustos à autocorrelação e heterocedasticidade (Newey-West HAC)
-epHAC <- coeftest(fit_anual_pct, vcov = vcovHAC(fit_anual_pct))
+epHAC_pct <- coeftest(fit_anual_pct, vcov = vcovHAC(fit_anual_pct))
 
 # Tabela formatada com HAC
-tidy(epHAC) %>%
+tidy(epHAC_pct) %>%
   mutate(ic_inf = 100 * (estimate - 1.96 * std.error),
          ic_sup = 100 * (estimate + 1.96 * std.error)) |> 
   mutate(p.value = scales::label_pvalue(accuracy = 0.001)(p.value)) |> 
   print()
 ```
 
+O modelo que tem como variável dependente a participação do Brasil no mercado receptivo turístico internacional conduz às mesmas conclusões que os modelos sobre as chegadas em nível e em log.
+
+A tendência linear apresenta coeficiente não significante. Isso sugere que o país seguia a dinâmica do turismo mundial.
+
+O Copa de 2014 significou uma elevação de 0,064 p.p., algo substancial, representando quase 12% de sua média no período (cerca de 0,54%). Contudo, após o evento o país passou a perder participação relativa, com queda de 0,029 p.p./ano (tendência líquida de −0,003 − 0,029 = −0,032 p.p./ano).
+
+Consistente com o modelo em log, a recessão apresentou queda estatisticamente significante na participação do Brasil (−0,008 p.p.). 
+
+As Olimpíadas representaram um crescimento de 0,040 p.p. na participação do Brasil no turismo mundial. Assim como nos demais modelos, trata-se de um impacto positivo, embora inferior ao da Copa do Mundo de 2014.
+
+Para este modelo, os resultados relativos à pandemia não são estatisticamente significantes, apesar dos coeficientes com os sinais esperados. Pode-se atribuir tal resultado ao colapso do turismo mundial e também a problemas no registro de chegadas turísticas em diversos países, principalmente em 2020, 2021 e 2022.
+
+
 ```{r}
-stargazer(epHAC, type = "text")
+stargazer(epHAC_pct, type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          covariate.labels = c("Tendência linear",
+                               "Copa 2014-intercepto",
+                               "Copa 2014-inclinação",
+                               "Recessão 2015-intercepto",
+                               "Rio 2016-intercepto",
+                               "Pandemia-intercepto",
+                               "Pandemia-inclinação",
+                               "Constante"),
+          digit.separator = ".",
+          decimal.mark = ",",
+          model.numbers = FALSE, model.names = FALSE, 
+          dep.var.caption = "",
+          dep.var.labels = "Participação no total mundial (p.p.)")
 ```
 
 #### Visualização
@@ -1012,6 +1147,9 @@ ggplot(bd_anual_pct, aes(x = ano)) +
 ```
 
 #### Autocorrelação
+
+O teste Breusch-Godfrey não detectou autocorrelação de segunda ordem nos resíduos (LM = 5,45; p = 0,066).
+
 ```{r}
 #| label: anual pct Diagnóstico de autocorrelação
 
@@ -1030,177 +1168,384 @@ checkresiduals(fit_anual_pct$residuals)
 ```
 
 
-## Fluxo anual, análise por evento, 2009-2024
+### Resumo
 
-## Fluxo anual, testes de robustez
+Os modelos mostram:
 
-## Fluxo mensal
+- Copa do Mundo 2014 com coeficientes positivos no intercepto e negativos na inclinação. Isso indica efeito positivo imediato do evento e tendência de decréscimo posteriormente.
 
-### Análise agregada
+- Recessão 2015 com intercepto negativo segundo os modelos do logaritmo natural das chegadas e da participação, mas sem conclusão significante para o modelo em nível.
 
-#### Dados
+- Jogos Olímpicos Rio 2016 com coeficientes positivos no intercepto e negativos na inclinação. Isso indica efeito positivo imediato do evento e tendência de decréscimo no momento posterior. O valor dos coeficientes do intercepto sugerem que o impacto foi menor do que a Copa do Mundo 2014.
+
+- Pandemia de covid-19 com coeficientes negativos no intercepto e positivos na inclinação. Isso indica  efeito negativo da pandemia e  tendência de recuperação no momento posterior.
+
+
+
 ```{r}
-## Construção das variáveis ITS ----
-bd <- bd |>
-  mutate(
-    mes = case_match(
-      mes,
-      "janeiro"   ~ 1L,
-      "fevereiro" ~ 2L,
-      "marco"     ~ 3L,
-      "abril"     ~ 4L,
-      "maio"      ~ 5L,
-      "junho"     ~ 6L,
-      "julho"     ~ 7L,
-      "agosto"    ~ 8L,
-      "setembro"  ~ 9L,
-      "outubro"   ~ 10L,
-      "novembro"  ~ 11L,
-      "dezembro"  ~ 12L
-    )
-  )
-
-bdm <- bd |> summarise(chegadas = sum(chegadas),.by = c(ano,mes))
-
-bd_mensal <- bdm |>
-  arrange(ano, mes) |>
-  mutate(
-    # Índice de tempo (1, 2, 3, ...) — tendência linear
-    t = row_number(),
-
-    # Datas numéricas fracionadas para comparação
-    data_frac = ano + (mes - 1) / 12,
-
-    # Copa do Mundo: junho de 2014 (início do torneio: 12/06/2014)
-    D_copa     = as.integer(data_frac >= 2014 + 5/12),
-    slope_copa = pmax(0, t - (which(ano == 2014 & mes == 6)[1] - 1)),
-
-    # Recessão: início em 2015-01
-    D_rec      = as.integer(data_frac >= 2015),
-    slope_rec  = pmax(0, t - (which(ano == 2015 & mes == 1)[1] - 1)),
-
-    # Olimpíadas Rio: agosto de 2016 (início: 05/08/2016)
-    D_rio      = as.integer(data_frac >= 2016 + 7/12),
-    slope_rio  = pmax(0, t - (which(ano == 2016 & mes == 8)[1] - 1)),
-
-    # Pandemia: março de 2020 (OMS declarou emergência: 11/03/2020)
-    D_pand     = as.integer(data_frac >= 2020 + 2/12),
-    slope_pand = pmax(0, t - (which(ano == 2020 & mes == 3)[1] - 1))
-  )
-```
-
-#### Sazonalidade
-```{r}
-# Turismo tem sazonalidade forte. Usamos termos de Fourier (pares seno/cosseno)
-# para modelá-la de forma flexível, sem incluir 11 dummies de mês.
-# harmonic(t, nharmonics, period) do {tsModel} gera os termos.
-
-# Transforma chegadas em objeto ts (necessário para harmonic())
-chegadas_ts <- ts(bd_mensal$chegadas, start = c(min(bd_mensal$ano), 1), frequency = 12)
-
-# Matriz de termos de Fourier (2 pares = 4 colunas)
-fourier_mat <- harmonic(chegadas_ts, nfreq = 2, period = 12)
-colnames(fourier_mat) <- c("sin1", "cos1", "sin2", "cos2")
-
-bd_mensal <- bind_cols(bd_mensal, as_tibble(fourier_mat))
-```
-
-#### Modelo
-```{r}
-#| eval: false
-#| include: false
-# OLS com erros HAC
-
-fit_mensal <- lm(
-  chegadas ~ t + sin1 + cos1 + sin2 + cos2 +
-    D_copa    + slope_copa  +
-    D_rec     + slope_rec   +
-    D_rio     + slope_rio   +
-    D_pand    + slope_pand,
-  data = bd_mensal
-)
-
-summary(fit_mensal)
-
-# Erros-padrão robustos HAC (Newey-West)
-coeftest(fit_mensal, vcov = vcovHAC(fit_mensal))
-
-```
-
-#### Autocorrelação
-```{r}
-#| eval: false
-#| include: false
-# Para dados mensais, testar até ordem 12 (1 ano) (H0: sem autocorrelação nos resíduos)
-bgtest(fit_mensal, order = 12)
-
-checkresiduals(fit_mensal$residuals)
-```
-
-#### Visualização
-```{r}
-#| eval: false
-#| include: false
-bd_mensal <- bd_mensal |>
-  mutate(
-    data_plot = as.Date(paste(ano, mes, "01", sep = "-")),
-    fitted    = fitted(fit_mensal),
-    # Contrafactual: apenas tendência + sazonalidade (sem eventos)
-    contraf   = coef(fit_mensal)["(Intercept)"] +
-                coef(fit_mensal)["t"]    * t    +
-                coef(fit_mensal)["sin1"] * sin1 +
-                coef(fit_mensal)["cos1"] * cos1 +
-                coef(fit_mensal)["sin2"] * sin2 +
-                coef(fit_mensal)["cos2"] * cos2
-  )
-
-datas_eventos <- as.Date(c("2014-06-01", "2015-01-01", "2016-08-01", "2020-03-01"))
-labels_eventos <- c("Copa 2014", "Recessão 2015", "Rio 2016", "COVID-19 2020")
-
-ggplot(bd_mensal, aes(x = data_plot)) +
-  geom_point(aes(y = chegadas), color = "black", size = 0.8, alpha = 0.6) +
-  geom_line(aes(y = fitted),  color = "steelblue", linewidth = 0.9,
-            linetype = "solid",  na.rm = TRUE) +
-  geom_line(aes(y = contraf), color = "gray50",   linewidth = 0.7,
-            linetype = "dashed", na.rm = TRUE) +
-  geom_vline(xintercept = datas_eventos,
-             linetype = "dotted", color = "red", alpha = 0.7) +
-  annotate("text", x = datas_eventos,
-           y = max(bd_mensal$chegadas, na.rm = TRUE),
-           label = labels_eventos,
-           angle = 90, vjust = -0.3, hjust = 1.1,
-           size = 2.8, color = "red") +
-  labs(
-    title    = "ITS — Chegadas turísticas internacionais ao Brasil (mensal)",
-    subtitle = "Linha azul: modelo ajustado | Linha cinza: contrafactual (tendência + sazonalidade)",
-    x = "Data", y = "Chegadas internacionais"
-  ) +
-  theme_minimal()
-```
-
-#### Modelo SARIMA com regressores ITS (Opcional)
-```{r}
-#| eval: false
-#| include: false
-# Use se bgtest() rejeitar H0 nos resíduos do OLS mensal.
-# auto.arima() detecta automaticamente a estrutura ARIMA + sazonal.
-
-regressores_mensal <- bd_mensal |>
-  select(t, sin1, cos1, sin2, cos2,
-         D_copa, slope_copa, D_rec, slope_rec,
-         D_rio, slope_rio, D_pand, slope_pand) |>
-  as.matrix()
-
-fit_sarima_mensal <- auto.arima(
-  chegadas_ts,
-  xreg        = regressores_mensal,
-  seasonal    = TRUE,
-  stepwise    = FALSE,
-  approximation = FALSE
-)
-
-summary(fit_sarima_mensal)
+stargazer(epNW2_nivel, epNW2_log, epHAC_pct, 
+          type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          covariate.labels = c("Tendência linear",
+                               "Copa 2014-intercepto",
+                               "Copa 2014-inclinação",
+                               "Recessão 2015-intercepto",
+                               "Rio 2016-intercepto",
+                               "Pandemia-intercepto",
+                               "Pandemia-inclinação",
+                               "Constante"),
+          digit.separator = ".",
+          decimal.mark = ",",
+          model.numbers = FALSE, model.names = FALSE, 
+          dep.var.caption = "Chegadas internacionais",
+          column.labels = c("Nível", "Log", "Participação"),
+          nobs = TRUE)
 ```
 
 
-### Análise por evento
+<!-- ## Fluxo mensal -->
+
+<!-- ```{r} -->
+<!-- #| label: Construção das variáveis ITS -->
+<!-- #| include: false -->
+
+<!-- bdm <- bd |> summarise(chegadas = sum(chegadas),.by = c(ano,cod_mes)) |>  -->
+<!--   rename(mes = cod_mes) -->
+
+<!-- bd_mensal <- bdm |> -->
+<!--   arrange(ano, mes) |> -->
+<!--   mutate( -->
+<!--     # Índice de tempo (1, 2, 3, ...) — tendência linear -->
+<!--     t = row_number(), -->
+
+<!--     # Datas numéricas fracionadas para comparação -->
+<!--     data_frac = ano + (mes - 1) / 12, -->
+
+<!--     # Copa do Mundo: junho de 2014 (início do torneio: 12/06/2014) -->
+<!--     D_copa     = as.integer(data_frac >= 2014 + 5/12), -->
+<!--     slope_copa = pmax(0, t - (which(ano == 2014 & mes == 6)[1] - 1)), -->
+
+<!--     # Recessão: início em 2015-01 -->
+<!--     D_rec      = as.integer(data_frac >= 2015), -->
+<!--     slope_rec  = pmax(0, t - (which(ano == 2015 & mes == 1)[1] - 1)), -->
+
+<!--     # Olimpíadas Rio: agosto de 2016 (início: 05/08/2016) -->
+<!--     D_rio      = as.integer(data_frac >= 2016 + 7/12), -->
+<!--     slope_rio  = pmax(0, t - (which(ano == 2016 & mes == 8)[1] - 1)), -->
+
+<!--     # Pandemia: março de 2020 (OMS declarou emergência: 11/03/2020) -->
+<!--     D_pand     = as.integer(data_frac >= 2020 + 2/12), -->
+<!--     slope_pand = pmax(0, t - (which(ano == 2020 & mes == 3)[1] - 1)) -->
+<!--   ) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: Objeto TS -->
+<!-- #| include: false -->
+<!-- # Converte chegadas para objeto ts mensal -->
+<!-- chegadas_ts <- ts(bd_mensal$chegadas, -->
+<!--                   start     = c(min(bd_mensal$ano), 1), -->
+<!--                   frequency = 12) -->
+
+<!-- # Matriz de regressores ITS -->
+<!-- regressores_mensal <- bd_mensal |> -->
+<!--   select(t, -->
+<!--          D_copa,  slope_copa, -->
+<!--          D_rec,   slope_rec, -->
+<!--          D_rio,   slope_rio, -->
+<!--          D_pand,  slope_pand) |> -->
+<!--   as.matrix() -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- #| label: SARIMA em nível -->
+<!-- #| eval: false -->
+<!-- #| include: false -->
+
+<!-- # auto.arima detecta automaticamente a estrutura ARIMA + sazonal -->
+<!-- fit_sarima <- auto.arima( -->
+<!--   chegadas_ts, -->
+<!--   xreg          = regressores_mensal, -->
+<!--   seasonal      = TRUE, -->
+<!--   stepwise      = FALSE, -->
+<!--   approximation = FALSE -->
+<!-- ) -->
+
+<!-- summary(fit_sarima) -->
+
+<!-- # Diagnóstico dos resíduos — ACF deve estar limpo agora -->
+<!-- checkresiduals(fit_sarima) -->
+
+<!-- # Teste de Ljung-Box nos resíduos (adequado para modelos ARIMA) -->
+<!-- Box.test(residuals(fit_sarima), lag = 24, type = "Ljung-Box") -->
+<!-- ``` -->
+
+<!-- ### Modelo -->
+
+<!-- O modelo com dados mensais foi utilizado usando SARIMA com os regressores ITS. Além disso, a variável dependente foi utilizada em log, para lidar com heteroscedasticidade nos resíduos do modelo com a variável em nível.  -->
+
+<!-- A especificação do modelo foi obtida por meio da função auto.arima, que identifica o melhor modelo ARIMA de acordo com um critério de informação. A especificação selecionada foi um modelo $SARIMA(0,0,3)(2,0,0)_{12}$, isto é, um modelo SARIMA não diferenciado, com componente média móvel não sazonal de ordem 3 e componente autorregressivo sazonal de ordem 2, com periodicidade 12. -->
+
+<!-- ```{r} -->
+<!-- #| label: auto.arima -->
+<!-- #| eval: false -->
+<!-- #| include: false -->
+
+<!-- fit_sarima_log_auto <- auto.arima( -->
+<!--   log(chegadas_ts), -->
+<!--   xreg          = regressores_mensal, -->
+<!--   seasonal      = TRUE, -->
+<!--   stepwise      = FALSE, -->
+<!--   approximation = FALSE) -->
+
+<!-- # auto.arima gerou ARIMA(0,0,3)(2,0,0)[12] -->
+
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- #| label: SARIMA em log -->
+
+<!-- fit_sarima_log <- arima( -->
+<!--   log(chegadas_ts), -->
+<!--   order   = c(0, 0, 3), -->
+<!--   seasonal = list(order = c(2, 0, 0), period = 12), -->
+<!--   xreg    = regressores_mensal -->
+<!-- ) -->
+
+<!-- coef(fit_sarima_log) -->
+
+<!-- summary(fit_sarima_log) -->
+
+<!-- stargazer(fit_sarima_log, type = "text", -->
+<!--           star.cutoffs = c(0.05, 0.01, 0.001), -->
+<!--           covariate.labels = c(NA,NA,NA,NA,NA,"Intercepto", -->
+<!--                                "Tendência linear", -->
+<!--                                "Copa 2014-intercepto", -->
+<!--                                "Copa 2014-inclinação", -->
+<!--                                "Recessão 2015-intercepto", -->
+<!--                                "Recessão 2015-inclinação", -->
+<!--                                "Rio 2016-intercepto", -->
+<!--                                "Rio 2016-inclinação", -->
+<!--                                "Pandemia-intercepto", -->
+<!--                                "Pandemia-inclinação"), -->
+<!--           digit.separator = ".", -->
+<!--           decimal.mark = ",", -->
+<!--           model.numbers = FALSE, model.names = FALSE,  -->
+<!--           dep.var.caption = "", -->
+<!--           dep.var.labels = "Chegadas em log") -->
+
+<!-- ``` -->
+
+<!-- ### Visualização -->
+<!-- ```{r} -->
+<!-- #| label: Preparação para o gráfico -->
+<!-- #| include: false -->
+
+<!-- # Coeficientes do SARIMA (os regressores xreg ficam nomeados pelo colname da matriz) -->
+<!-- cf <- coef(fit_sarima_log) -->
+
+<!-- # Variáveis de evento presentes no modelo -->
+<!-- event_vars <- c("D_copa", "slope_copa", "D_rec", "slope_rec", -->
+<!--                 "D_rio",  "slope_rio",  "D_pand", "slope_pand") -->
+
+<!-- # Contribuição dos eventos para os valores ajustados (escala log) -->
+<!-- contribuicao_eventos <- rowSums( -->
+<!--   sapply(event_vars, function(v) cf[v] * regressores_mensal[, v]) -->
+<!-- ) -->
+
+<!-- # Valores ajustados e contrafactual em log, depois back-transformados -->
+<!-- fitted_log <- as.numeric(log(chegadas_ts) - residuals(fit_sarima_log)) -->
+<!-- contraf_log <- fitted_log - contribuicao_eventos -->
+
+<!-- bd_mensal <- bd_mensal |> -->
+<!--   mutate( -->
+<!--     data_plot     = as.Date(paste(ano, mes, "01", sep = "-")), -->
+<!--     fitted_nivel  = exp(fitted_log), -->
+<!--     contraf_nivel = exp(contraf_log) -->
+<!--   ) -->
+
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- #| label: Gráfico SARIMA log com linhas para eventos -->
+<!-- #| eval: false -->
+<!-- #| include: false -->
+
+<!-- datas_eventos  <- as.Date(c("2014-06-01", "2015-01-01", "2016-08-01", "2020-03-01")) -->
+
+<!-- ggplot(bd_mensal, aes(x = data_plot)) + -->
+<!--   geom_point(aes(y = chegadas, color = "Dados reais"), size = 0.8, alpha = 0.6) + -->
+<!--   geom_line(aes(y = fitted_nivel, color = "Modelo ajustado"), linewidth = 0.9, -->
+<!--             linetype = "solid",  na.rm = TRUE) + -->
+<!--   geom_line(aes(y = contraf_nivel, color = "Contrafactual"), linewidth = 0.7, -->
+<!--             linetype = "dashed", na.rm = TRUE) + -->
+<!--   geom_vline(xintercept = datas_eventos, -->
+<!--              linetype = "dotted", color = "red", alpha = 0.7) + -->
+<!--   annotate("text", x = datas_eventos, -->
+<!--            y = max(bd_mensal$chegadas, na.rm = TRUE), -->
+<!--            label = labels_eventos, -->
+<!--            angle = 90, vjust = -0.3, hjust = 0, -->
+<!--            size = 2.8, color = "red") + -->
+<!--   scale_x_date(breaks = as.Date(paste0(2009:2024, "-01-01")), -->
+<!--                date_labels = "%Y", minor_breaks = NULL) + -->
+<!--   scale_y_continuous(labels = fun_formatC_inteiros) + -->
+<!--   scale_color_manual(values = c("Dados reais" = "black", -->
+<!--                                 "Modelo ajustado" = "steelblue",  -->
+<!--                                 "Contrafactual" = "gray50"), -->
+<!--                      breaks = c("Dados reais", "Modelo ajustado", "Contrafactual")) + -->
+<!--   labs(title = "Chegadas turísticas internacionais ao Brasil (mensal)", -->
+<!--        x = "", -->
+<!--        y = "Chegadas internacionais", -->
+<!--        color = "") + -->
+<!--   theme_minimal() + -->
+<!--   theme(legend.position = "bottom", -->
+<!--         axis.text.x = element_text(angle = 90, hjust = 1)) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: Gráfico SARIMA log com áreas para eventos -->
+<!-- #| fig-width: 12 -->
+
+<!-- # Define as janelas de cada evento (ajuste as datas conforme necessário) -->
+<!-- eventos_rect <- data.frame( -->
+<!--   label = c("Copa 2014", "Recessão 2015", "Rio 2016", "COVID-19 2020"), -->
+<!--   xmin  = as.Date(c("2014-06-01", "2015-01-01", "2016-08-01", "2020-03-01")), -->
+<!--   xmax  = as.Date(c("2014-07-31", "2016-12-31", "2016-09-30", "2021-12-31")), -->
+<!--   fill  = c("Copa 2014", "Recessão 2015", "Rio 2016", "COVID-19 2020") -->
+<!-- ) -->
+
+<!-- ggplot(bd_mensal, aes(x = data_plot)) + -->
+<!--   geom_rect(data = eventos_rect, -->
+<!--             aes(xmin = xmin, xmax = xmax, fill = label), -->
+<!--             ymin = -Inf, ymax = Inf, -->
+<!--             alpha = 0.15, inherit.aes = FALSE) + -->
+<!--   geom_point(aes(y = chegadas, color = "Dados reais"), size = 0.8, alpha = 0.6) + -->
+<!--   geom_line(aes(y = fitted_nivel, color = "Modelo ajustado"), linewidth = 0.9, -->
+<!--             linetype = "solid",  na.rm = TRUE) + -->
+<!--   geom_line(aes(y = contraf_nivel, color = "Contrafactual"), linewidth = 0.7, -->
+<!--             linetype = "dashed", na.rm = TRUE) + -->
+<!--   scale_x_date( -->
+<!--     breaks      = as.Date(paste0(2009:2024, "-01-01")), -->
+<!--     date_labels = "%Y" -->
+<!--   ) + -->
+<!--   scale_y_continuous(labels = fun_formatC_inteiros) + -->
+<!--   scale_color_manual( -->
+<!--     values = c("Dados reais"     = "black", -->
+<!--                "Modelo ajustado" = "steelblue", -->
+<!--                "Contrafactual"   = "gray50"), -->
+<!--     breaks = c("Dados reais", "Modelo ajustado", "Contrafactual") -->
+<!--   ) + -->
+<!--   scale_fill_manual( -->
+<!--     values = c("Copa 2014"     = "gold3", -->
+<!--                "Recessão 2015" = "firebrick", -->
+<!--                "Rio 2016"      = "seagreen", -->
+<!--                "COVID-19 2020" = "purple") -->
+<!--   ) + -->
+<!--   labs(title = "Chegadas turísticas internacionais ao Brasil (mensal)", -->
+<!--        x     = "", -->
+<!--        y     = "Chegadas internacionais", -->
+<!--        color = "", -->
+<!--        fill  = "") + -->
+<!--   theme_minimal() + -->
+<!--   theme(legend.position = "bottom", -->
+<!--         axis.text.x     = element_text(angle = 90, hjust = 1)) + -->
+<!--   guides(color = guide_legend(title = NULL, -->
+<!--                               order = 1, -->
+<!--                               nrow = 1), -->
+<!--          fill = guide_legend(title = NULL,order = 2,nrow = 1)) + -->
+<!--   theme( -->
+<!--     legend.position = "bottom", -->
+<!--     legend.box = "vertical", -->
+<!--     legend.direction = "horizontal" -->
+<!--   ) -->
+<!-- ``` -->
+
+<!-- ### Autocorrelação -->
+<!-- ```{r} -->
+<!-- checkresiduals(fit_sarima_log) -->
+<!-- Box.test(residuals(fit_sarima_log), lag = 24, type = "Ljung-Box") -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: Ajuste da sazonalidade -->
+<!-- #| eval: false -->
+<!-- #| include: false -->
+<!-- # Turismo tem sazonalidade forte. Usamos termos de Fourier (pares seno/cosseno) -->
+<!-- # para modelá-la de forma flexível, sem incluir 11 dummies de mês. -->
+<!-- # harmonic(t, nharmonics, period) do {tsModel} gera os termos. -->
+
+<!-- # Transforma chegadas em objeto ts (necessário para harmonic()) -->
+<!-- chegadas_ts <- ts(bd_mensal$chegadas, start = c(min(bd_mensal$ano), 1), frequency = 12) -->
+
+<!-- # Matriz de termos de Fourier (2 pares = 4 colunas) -->
+<!-- fourier_mat <- harmonic(chegadas_ts, nfreq = 2, period = 12) -->
+<!-- colnames(fourier_mat) <- c("sin1", "cos1", "sin2", "cos2") -->
+
+<!-- bd_mensal <- bind_cols(bd_mensal, as_tibble(fourier_mat)) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| eval: false -->
+<!-- #| include: false -->
+<!-- # OLS com erros HAC -->
+
+<!-- fit_mensal <- lm( -->
+<!--   chegadas ~ t + sin1 + cos1 + sin2 + cos2 + -->
+<!--     D_copa    + slope_copa  + -->
+<!--     D_rec     + slope_rec   + -->
+<!--     D_rio     + slope_rio   + -->
+<!--     D_pand    + slope_pand, -->
+<!--   data = bd_mensal -->
+<!-- ) -->
+
+<!-- summary(fit_mensal) -->
+
+<!-- # Erros-padrão robustos HAC (Newey-West) -->
+<!-- coeftest(fit_mensal, vcov = vcovHAC(fit_mensal)) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: Gráfico antigo -->
+<!-- #| eval: false -->
+<!-- #| include: false -->
+
+<!-- bd_mensal <- bd_mensal |> -->
+<!--   mutate( -->
+<!--     data_plot = as.Date(paste(ano, mes, "01", sep = "-")), -->
+<!--     fitted    = fitted(fit_mensal), -->
+<!--     # Contrafactual: apenas tendência + sazonalidade (sem eventos) -->
+<!--     contraf   = coef(fit_mensal)["(Intercept)"] + -->
+<!--                 coef(fit_mensal)["t"]    * t    + -->
+<!--                 coef(fit_mensal)["sin1"] * sin1 + -->
+<!--                 coef(fit_mensal)["cos1"] * cos1 + -->
+<!--                 coef(fit_mensal)["sin2"] * sin2 + -->
+<!--                 coef(fit_mensal)["cos2"] * cos2 -->
+<!--   ) -->
+
+<!-- datas_eventos <- as.Date(c("2014-06-01", "2015-01-01", "2016-08-01", "2020-03-01")) -->
+<!-- labels_eventos <- c("Copa 2014", "Recessão 2015", "Rio 2016", "COVID-19 2020") -->
+
+<!-- ggplot(bd_mensal, aes(x = data_plot)) + -->
+<!--   geom_point(aes(y = chegadas), color = "black", size = 0.8, alpha = 0.6) + -->
+<!--   geom_line(aes(y = fitted),  color = "steelblue", linewidth = 0.9, -->
+<!--             linetype = "solid",  na.rm = TRUE) + -->
+<!--   geom_line(aes(y = contraf), color = "gray50",   linewidth = 0.7, -->
+<!--             linetype = "dashed", na.rm = TRUE) + -->
+<!--   geom_vline(xintercept = datas_eventos, -->
+<!--              linetype = "dotted", color = "red", alpha = 0.7) + -->
+<!--   annotate("text", x = datas_eventos, -->
+<!--            y = max(bd_mensal$chegadas, na.rm = TRUE), -->
+<!--            label = labels_eventos, -->
+<!--            angle = 90, vjust = -0.3, hjust = 1.1, -->
+<!--            size = 2.8, color = "red") + -->
+<!--   labs( -->
+<!--     title    = "ITS — Chegadas turísticas internacionais ao Brasil (mensal)", -->
+<!--     subtitle = "Linha azul: modelo ajustado | Linha cinza: contrafactual (tendência + sazonalidade)", -->
+<!--     x = "Data", y = "Chegadas internacionais" -->
+<!--   ) + -->
+<!--   theme_minimal() -->
+<!-- ``` -->
