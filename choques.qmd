@@ -1,7 +1,8 @@
 ---
 title: "Efeito de choque externos sobre o fluxo turístico receptivo internacional no Brasil"
-format: 
+format:
   html: default
+# format: docx
 editor: source
 page-layout: full
 self-contained: true
@@ -22,6 +23,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
+  
 <!-- ## Configurações iniciais -->
 ```{r}
 #| label: Configurações iniciais
@@ -40,6 +42,7 @@ library(stargazer)
 library(car)
 library(boot)
 library(tseries)
+library(gt)
 
 # Funções de formatação de números
 fun_formatC_inteiros <- function(x) {
@@ -66,7 +69,7 @@ bd <- readRDS("data/chegadas/chegadas.rds")
 # Elimina dados de 2025
 bd <- bd |> filter(ano != 2025)
 
-labels_eventos <- c("Copa 2014", "Recessão 2015", "Rio 2016", "COVID-19 2020")
+labels_eventos <- c("Copa 2014", "Recessão 2015", "Rio 2016", "Pandemia 2020")
 
 ```
 
@@ -153,6 +156,7 @@ A observação da série das chegadas turísticas internacionais no Brasil para 
 
 #### Série
 ```{r}
+#| fig-cap: "Total de chegadas turísticas internacionais ao Brasil, por ano"
 bd_anual |> mutate(chegadas = chegadas / 1000000) |> 
   ggplot(aes(x=ano, y=chegadas)) + 
   geom_bar(stat = "identity") +
@@ -162,7 +166,6 @@ bd_anual |> mutate(chegadas = chegadas / 1000000) |>
    scale_x_continuous(breaks = seq(2009, 2024, 1), minor_breaks = NULL) +
   scale_y_continuous(labels = fun_formatC_inteiros) +
   labs(
-    title = "Total de chegadas turísticas internacionais ao Brasil, por ano",
     y = "Chegadas internacionais (milhões)",
     x = "Ano")
 ```
@@ -173,6 +176,7 @@ bd_anual |> mutate(chegadas = chegadas / 1000000) |>
 ```{r}
 #| label: anual nível Modelo ITS
 #| include: false
+#| results: 'asis'
 
 # O modelo estima, para cada evento:
 #   β_D_k    = mudança abrupta no nível (efeito imediato)
@@ -190,7 +194,7 @@ fit_anual_nivel <- lm(
 # Erros-padrão normais
 summary(fit_anual_nivel)
 
-stargazer(fit_anual_nivel, type = "text")
+stargazer(fit_anual_nivel, type = "html")
 
 # Erros-padrão robustos à autocorrelação e heterocedasticidade (Newey-West HAC)
 epHAC <- coeftest(fit_anual_nivel, vcov = vcovHAC(fit_anual_nivel))
@@ -222,7 +226,8 @@ Por fim, o modelo estima que a pandemia de covid-19 representou uma brutal queda
 
 
 ```{r}
-stargazer(epNW2_nivel, type = "text",
+#| results: 'asis'
+stargazer(epNW2_nivel, type = "html",
           star.cutoffs = c(0.05, 0.01, 0.001),
           covariate.labels = c("Tendência linear",
                                "Copa 2014-intercepto",
@@ -238,6 +243,8 @@ stargazer(epNW2_nivel, type = "text",
           dep.var.caption = "",
           dep.var.labels = "Chegadas em nível")
 ```
+
+
 
 ```{r}
 #| label: anual nivel outros erros-padrão
@@ -267,6 +274,7 @@ boot.ci(boot_fit, type = "perc", index = 3)  # IC para D_copa
 
 ```{r}
 #| label: anual nivel plot
+#| fig-cap: "Total de chegadas turísticas internacionais ao Brasil, por ano - dados reais, modelo ajustado e contrafactual"
 
 bd_anual <- bd_anual |>
   mutate(
@@ -295,7 +303,7 @@ ggplot(bd_anual, aes(x = ano)) +
                                 "Modelo Ajustado" = "steelblue", 
                                 "Contrafactual" = "gray50"),
                      breaks = c("Dados reais", "Modelo Ajustado", "Contrafactual")) +
-    labs(title = "Chegadas turísticas internacionais ao Brasil (anual)",
+    labs(
          x = "Ano", 
          y = "Chegadas internacionais",
          color = "") + 
@@ -648,12 +656,15 @@ summary(fit_arima_anual)
 ### Chegadas em log
 #### Série
 ```{r}
-
 bd_anual_log <- bd_anual |> 
   dplyr::select(ano:slope_pand) |> 
   mutate(lchegadas = log(chegadas),
          var_pct = (chegadas / lag(chegadas) - 1) * 100)
+```
 
+
+```{r}
+#| fig-cap: "Logaritmo natural do total de chegadas turísticas internacionais ao Brasil, por ano"
 bd_anual_log |> 
   ggplot(aes(x=ano, y=lchegadas)) + 
   geom_bar(stat = "identity") +
@@ -663,10 +674,13 @@ bd_anual_log |>
   scale_x_continuous(breaks = seq(2009, 2024, 1), minor_breaks = NULL) +
   scale_y_continuous(labels = fun_formatC_1_decimal) +
   coord_cartesian(ylim = c(12, 16)) +
-  labs(title = "Chegadas turísticas internacionais ao Brasil, por ano (log)",
-    y = "Chegadas internacionais (log)",
+  labs(y = "Chegadas internacionais (log)",
     x = "Ano")
+```
 
+
+```{r}
+#| fig-cap: "Crescimento das chegadas turísticas internacionais ao Brasil, por ano (%)"
 bd_anual_log |> 
   ggplot(aes(x=ano, y=var_pct)) + 
   geom_bar(stat = "identity") +
@@ -675,8 +689,7 @@ bd_anual_log |>
             vjust = -0.3, size = 2.5) +
   scale_x_continuous(breaks = seq(2009, 2024, 1), minor_breaks = NULL) +
   scale_y_continuous(labels = fun_formatC_1_decimal) +
-  labs(title = "Crescimento das chegadas turísticas internacionais ao Brasil, por ano (%)",
-    y = "Variação das chegadas internacionais (%)",
+  labs(y = "Variação das chegadas internacionais (%)",
     x = "Ano")
 ```
 
@@ -734,7 +747,8 @@ epNW2_log <- coeftest(fit_anual_log, vcov = NeweyWest(fit_anual_log, lag = 2, pr
 ```
 
 ```{r}
-stargazer(epNW2_log, type = "text",
+#| results: 'asis'
+stargazer(epNW2_log, type = "html",
           star.cutoffs = c(0.05, 0.01, 0.001),
           covariate.labels = c("Tendência linear",
                                "Copa 2014-intercepto",
@@ -769,6 +783,7 @@ round((exp(coefs) - 1) * 100, 1) |> as.data.frame() |> rename(pct = 1)
 #### Visualização
 ```{r}
 #| label: anual log plot
+#| fig-cap: "Logaritmo natural das chegadas turísticas internacionais ao Brasil, por ano - dados reais, modelo ajustado e contrafactual"
 
 bd_anual_log <- bd_anual_log |>
   mutate(
@@ -777,26 +792,24 @@ bd_anual_log <- bd_anual_log |>
     contraf   = coef(fit_anual_log)["(Intercept)"] +
                 coef(fit_anual_log)["t"] * t)
 
+
 ggplot(bd_anual_log, aes(x = ano)) +
-  geom_point(aes(y = lchegadas), color = "black", size = 2) +
-  geom_line(aes(y = fitted, color = "Modelo Ajustado"),  
-            linewidth = 1, linetype = "solid", na.rm = TRUE) +
-  geom_line(aes(y = contraf, color = "Contrafactual"), 
-            linewidth = 0.8, linetype = "dashed", na.rm = TRUE) +
-  geom_vline(xintercept = c(2014, 2015, 2016, 2020),
-             linetype = "dotted", color = "red", alpha = 0.7) +
+  geom_point(aes(y = lchegadas, color = "Dados reais"), size = 2) +
+  geom_line(aes(y = fitted, color = "Modelo Ajustado"), linewidth = 1, linetype = "solid", na.rm = TRUE) +
+  geom_line(aes(y = contraf, color = "Contrafactual"), linewidth = 0.8, linetype = "dashed", na.rm = TRUE) +
+  geom_vline(xintercept = c(2014, 2015, 2016, 2020), linetype = "dotted", color = "red", alpha = 0.7) +
   annotate("text", x = c(2014, 2015, 2016, 2020),
            y = max(bd_anual_log$lchegadas, na.rm = TRUE),
            label = labels_eventos,
-           angle = 90, vjust = -0.3, hjust = -0.6,
+           angle = 90, vjust = -0.3, hjust = -0.3,
            size = 3, color = "red") +
   scale_y_continuous(labels = fun_formatC_2_decimais) +
   coord_cartesian(ylim = c(13, 17)) +
   scale_x_continuous(breaks = seq(2009, 2024, 1), minor_breaks = NULL) +
-  scale_color_manual(values = c("Modelo Ajustado" = "steelblue", 
+  scale_color_manual(values = c("Dados reais" = "black",
+                                "Modelo Ajustado" = "steelblue", 
                                 "Contrafactual" = "gray50")) +
-  labs(title = "Chegadas turísticas internacionais ao Brasil (anual)",
-       x = "Ano", 
+  labs(x = "Ano", 
        y = "Logaritmo natural das chegadas internacionais",
        color = "") + 
   theme_minimal() +
@@ -992,6 +1005,8 @@ A cota do Brasil no total de chegadas mundiais se mantinha praticamente estagnad
 
 #### Série
 ```{r}
+#| fig-cap: "Participação do Brasil no total mundial de chegadas (anual)"
+
 bd_anual_pct |> 
   ggplot(aes(x=ano, y=pct)) + 
   geom_bar(stat = "identity") +
@@ -1001,9 +1016,7 @@ bd_anual_pct |>
    scale_x_continuous(breaks = seq(2009, 2024, 1), minor_breaks = NULL) +
   scale_y_continuous(labels = fun_formatC_2_decimais, breaks = seq(0,.6,.1)) +
   coord_cartesian(ylim = c(0, .6)) + 
-  labs(
-    title = "Participação do Brasil no total mundial de chegadas (anual)",
-    y = "Participação do Brasil (%)",
+  labs(y = "Participação do Brasil (%)",
     x = "Ano")
 ```
 
@@ -1052,7 +1065,8 @@ Para este modelo, os resultados relativos à pandemia não são estatisticamente
 
 
 ```{r}
-stargazer(epHAC_pct, type = "text",
+#| results: 'asis'
+stargazer(epHAC_pct, type = "html",
           star.cutoffs = c(0.05, 0.01, 0.001),
           covariate.labels = c("Tendência linear",
                                "Copa 2014-intercepto",
@@ -1072,6 +1086,8 @@ stargazer(epHAC_pct, type = "text",
 #### Visualização
 ```{r}
 #| label: anual pct plot
+#| fig-cap: "Participação do Brasil no total mundial de chegadas, por ano  - dados reais x modelo ajustado e contrafactual"
+
 bd_anual_pct <- bd_anual_pct |> dplyr::select(ano:slope_pand, pct) |> 
   mutate(fitted = fitted(fit_anual_pct),
          # Contrafactual: remove os efeitos dos eventos mantendo apenas t + intercepto
@@ -1096,8 +1112,7 @@ ggplot(bd_anual_pct, aes(x = ano)) +
                                 "Modelo Ajustado" = "steelblue", 
                                 "Contrafactual" = "gray50"),
                       breaks = c("Dados reais", "Modelo Ajustado", "Contrafactual")) +
-  labs(title = "Participação do Brasil no total mundial de chegadas (anual)",
-       x = "Ano", 
+  labs(x = "Ano", 
        y = "Participação do Brasil (%)",
        color = "") + 
   theme_minimal() +
@@ -1183,8 +1198,9 @@ Os modelos mostram:
 
 
 ```{r}
+#| results: 'asis'
 stargazer(epNW2_nivel, epNW2_log, epHAC_pct, 
-          type = "text",
+          type = "html",
           star.cutoffs = c(0.05, 0.01, 0.001),
           covariate.labels = c("Tendência linear",
                                "Copa 2014-intercepto",
@@ -1549,3 +1565,4 @@ stargazer(epNW2_nivel, epNW2_log, epHAC_pct,
 <!--   ) + -->
 <!--   theme_minimal() -->
 <!-- ``` -->
+
